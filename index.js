@@ -29,6 +29,7 @@ class App {
     canvas;
     /** @type {CanvasRenderingContext2D} */
     ctx;
+    margin = 50;
 
     limits = new BoundingBox();
     /** @type {[Number, Number][]} */
@@ -80,9 +81,11 @@ class App {
 
     drawPositions() {
         this.ctx.fillStyle = this.itemColor;
+        const screenWidth = this.width - 2 * this.margin;
+        const screenHeight = this.height - 2 * this.margin;
         for (const [x, y] of this.positions) {
-            const cx = this.width * (x - this.limits.left) / this.limits.width;
-            const cy = this.height * (y - this.limits.top) / this.limits.height;
+            const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
+            const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
             this.ctx.beginPath();
             this.ctx.ellipse(cx, cy, 3, 3, 0, 0, TAU, false);
             this.ctx.fill();
