@@ -1,0 +1,12 @@
+
+:root {
+    --background-color: #222;
+    --item-color: #d0a400;
+}
+
+body {
+    background-color: var(--background-color);
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
