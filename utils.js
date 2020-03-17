@@ -27,6 +27,12 @@ function cssColorToColor(cssColor) {
     return rgbToVal(cssColor >>> 16 & 0xff, cssColor >>> 8 & 0xff, cssColor & 0xff);
 }
 
+function euclideanDistanceSquared(x0, y0, x1, y1) {
+    const a = x1 - x0;
+    const b = y1 - y0;
+    return a * a + b * b;
+}
+
 class Debouncer {
     constructor () { this.timer = null; }
     set(task, delay) {
@@ -46,5 +52,6 @@ export {
     readCssVar,
     readCssVarAsHexNumber,
     cssColorToColor,
+    euclideanDistanceSquared,
     Debouncer,
 };

@@ -1,5 +1,5 @@
 
-import {readCssVar} from "./utils.js";
+import {readCssVar, euclideanDistanceSquared} from "./utils.js";
 import GridSpatialIndex from "./grid-spatial-index.js";
 
 const TAU = Math.PI * 2;
@@ -54,11 +54,13 @@ class App {
     /** @type {HTMLElement} */
     console = document.getElementById("console");
 
-    limits = new BoundingBox();
+    boundingBox = new BoundingBox();
     /** @type {[Number, Number][]} */
-    positions = [];
+    playerPositions = [];
     /** @type {[Number, Number][]} */
     focuses = [];
+    /** @type {Number[][]} */
+    playerIndexesByFocusIndex = [];
 
     /** @type {GridSpatialIndex} */
     spatialIndex;
@@ -118,42 +120,42 @@ class App {
             const lines = text.split("\n");
             const mapToFloat = parseFloat.bind(window);
 
-            this.positions = [];
-            this.limits.reset();
+            this.playerPositions = [];
+            this.boundingBox.reset();
 
             for (const line of lines) {
                 const rawCoordinates = line.split("\t");
                 const coordinates = rawCoordinates.map(mapToFloat);
-                this.limits.add(...coordinates);
-                this.positions.push(coordinates);
+                this.boundingBox.add(...coordinates);
+                this.playerPositions.push(coordinates);
             }
 
-            this.log(`Players loaded: ${this.positions.length}`);
-            this.log(`Box top: ${this.limits.top}`);
-            this.log(`Box right: ${this.limits.right}`);
-            this.log(`Box bottom: ${this.limits.bottom}`);
-            this.log(`Box left: ${this.limits.left}`);
+            this.log(`Players loaded: ${this.playerPositions.length}`);
+            this.log(`Box top: ${this.boundingBox.top}`);
+            this.log(`Box right: ${this.boundingBox.right}`);
+            this.log(`Box bottom: ${this.boundingBox.bottom}`);
+            this.log(`Box left: ${this.boundingBox.left}`);
             this.log("Normalizing...");
 
             // must normalize so all coordinates are >= 0 (a limitation of the spatial index)
-            for (const position of this.positions) {
-                position[0] -= this.limits.left;
-                position[1] -= this.limits.top;
+            for (const position of this.playerPositions) {
+                position[0] -= this.boundingBox.left;
+                position[1] -= this.boundingBox.top;
             }
 
-            this.limits.reset();
-            for (const position of this.positions) {
-                this.limits.add(...position);
+            this.boundingBox.reset();
+            for (const position of this.playerPositions) {
+                this.boundingBox.add(...position);
             }
-            this.log(`Box top: ${this.limits.top}`);
-            this.log(`Box right: ${this.limits.right}`);
-            this.log(`Box bottom: ${this.limits.bottom}`);
-            this.log(`Box left: ${this.limits.left}`);
+            this.log(`Box top: ${this.boundingBox.top}`);
+            this.log(`Box right: ${this.boundingBox.right}`);
+            this.log(`Box bottom: ${this.boundingBox.bottom}`);
+            this.log(`Box left: ${this.boundingBox.left}`);
 
-            this.spatialIndex = new GridSpatialIndex(SPATIAL_INDEX_CELL_EXPONENT, this.limits.right, this.limits.height);
+            this.spatialIndex = new GridSpatialIndex(SPATIAL_INDEX_CELL_EXPONENT, this.boundingBox.right, this.boundingBox.height);
             this.log(`Spatial index cell count: ${this.spatialIndex.totalCellCount}`);
-            for (let i = 0; i < this.positions; i++) {
-                this.spatialIndex.insert(i, this.positions[i][0], this.positions[i][1]);
+            for (let i = 0; i < this.playerPositions; i++) {
+                this.spatialIndex.insert(i, this.playerPositions[i][0], this.playerPositions[i][1]);
             }
         }
     }
@@ -189,9 +191,9 @@ class App {
         this.playersCtx.clearRect(0, 0, this.width, this.height);
         this.playersCtx.fillStyle = this.playerColor;
 
-        for (const [x, y] of this.positions) {
-            const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
-            const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
+        for (const [x, y] of this.playerPositions) {
+            const cx = this.margin + screenWidth * (x - this.boundingBox.left) / this.boundingBox.width;
+            const cy = this.margin + screenHeight * (y - this.boundingBox.top) / this.boundingBox.height;
             this.playersCtx.fillRect(cx, cy, this.playerRadius, this.playerRadius);
         }
     }
@@ -199,9 +201,27 @@ class App {
     pickFocuses() {
         this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
-            const focus = this.positions[Math.floor(Math.random() * this.positions.length)];
+            const focus = this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)];
             this.focuses.push(focus);
         }
+
+        this.playerIndexesByFocusIndex = Array.from(new Array(this.numberOfFocuses), () => []);
+        for (let playerIndex = 0; playerIndex < this.playerPositions.length; playerIndex++) {
+            const position = this.playerPositions[playerIndex];
+            let closestFocusIndex = -1;
+            let closestFocusDistanceSquared = Number.POSITIVE_INFINITY;
+            for (let fi = 0; fi < this.focuses.length; fi++) {
+                const focus = this.focuses[fi];
+                const distanceSquared = euclideanDistanceSquared(...position, ...focus);
+                if (distanceSquared < closestFocusDistanceSquared) {
+                    closestFocusIndex = fi;
+                    closestFocusDistanceSquared = distanceSquared;
+                }
+            }
+            this.playerIndexesByFocusIndex[closestFocusIndex].push(playerIndex);
+        }
+
+        console.info(this.playerIndexesByFocusIndex);
     }
 
     drawFocuses() {
@@ -213,8 +233,8 @@ class App {
         for (let fi = 0; fi < this.focuses.length; fi++) {
             const [x, y] = this.focuses[fi];
 
-            const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
-            const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
+            const cx = this.margin + screenWidth * (x - this.boundingBox.left) / this.boundingBox.width;
+            const cy = this.margin + screenHeight * (y - this.boundingBox.top) / this.boundingBox.height;
 
             this.focusesCtx.fillStyle = this.focusColors[fi];
             this.focusesCtx.beginPath();
