@@ -84,19 +84,29 @@ class App {
 
         this.initialize();
 
-        window.addEventListener("resize", this.resize.bind(this));
-        this.resize();
+        window.addEventListener("resize", this.onResize.bind(this));
 
         this.updateFn = this.update.bind(this);
         // this.update(performance.now());
 
-        document.body.addEventListener("keypress", this.keypress.bind(this));
+        document.body.addEventListener("keypress", this.onKeypress.bind(this));
     }
 
     /**
      * @return {void}
      */
     async initialize() {
+        await this.fetchAndProcessPlayersPositions();
+
+        this.clearLog();
+        this.resize();
+        this.drawPlayers();
+
+        this.pickFocuses();
+        this.drawFocuses();
+    }
+
+    async fetchAndProcessPlayersPositions() {
         const response = await fetch("./scenario-6.tsv");
         if (response.ok) {
             const text = await response.text();
@@ -133,21 +143,20 @@ class App {
             this.log(`Box right: ${this.limits.right}`);
             this.log(`Box bottom: ${this.limits.bottom}`);
             this.log(`Box left: ${this.limits.left}`);
-
-            this.reload();
         }
     }
 
-    reload() {
-        this.resize();
-        this.drawPositions();
-        this.pickAndDrawFocuses();
-    }
-
-    keypress(event) {
+    onKeypress(event) {
         if (event.key === " ") {
-            this.pickAndDrawFocuses();
+            this.pickFocuses();
+            this.drawFocuses();
         }
+    }
+
+    onResize() {
+        this.resize();
+        this.drawPlayers();
+        this.drawFocuses();
     }
 
     resize() {
@@ -161,7 +170,7 @@ class App {
         this.focusesCanvas.setAttribute("height", heightStr);
     }
 
-    drawPositions() {
+    drawPlayers() {
         const screenWidth = this.width - 2 * this.margin;
         const screenHeight = this.height - 2 * this.margin;
 
@@ -175,17 +184,22 @@ class App {
         }
     }
 
-    pickAndDrawFocuses() {
+    pickFocuses() {
+        this.focuses = [];
+        for (let fi = 0; fi < this.numberOfFocuses; fi++) {
+            const focus = this.positions[Math.floor(Math.random() * this.positions.length)];
+            this.focuses.push(focus);
+        }
+    }
+
+    drawFocuses() {
         const screenWidth = this.width - 2 * this.margin;
         const screenHeight = this.height - 2 * this.margin;
 
         this.focusesCtx.clearRect(0, 0, this.width, this.height);
 
-        this.focuses = [];
-        for (let fi = 0; fi < this.numberOfFocuses; fi++) {
-            const focus = this.positions[Math.floor(Math.random() * this.positions.length)];
-            this.focuses.push(focus);
-            const [x, y] = focus;
+        for (let fi = 0; fi < this.focuses.length; fi++) {
+            const [x, y] = this.focuses[fi];
 
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
@@ -199,6 +213,10 @@ class App {
 
     update() {
         requestAnimationFrame(this.updateFn);
+    }
+
+    clearLog() {
+        this.console.innerText = "";
     }
 
     log(msg) {
