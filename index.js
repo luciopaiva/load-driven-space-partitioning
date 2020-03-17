@@ -38,6 +38,8 @@ class App {
     limits = new BoundingBox();
     /** @type {[Number, Number][]} */
     positions = [];
+    /** @type {[Number, Number][]} */
+    focuses = [];
 
     backgroundColor = readCssVar("background-color");
     itemColor = readCssVar("item-color");
@@ -74,12 +76,16 @@ class App {
             const text = await response.text();
             const lines = text.split("\n");
             const mapToFloat = parseFloat.bind(window);
+
+            this.positions = [];
+
             for (const line of lines) {
                 const rawCoordinates = line.split("\t");
                 const coordinates = rawCoordinates.map(mapToFloat);
                 this.limits.add(...coordinates);
                 this.positions.push(coordinates);
             }
+
             this.log(`Items loaded: ${this.positions.length}`);
             this.reload();
         }
@@ -118,8 +124,11 @@ class App {
 
         this.ctx.fillStyle = this.itemColor;
 
+        this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
-            const [x, y] = this.positions[Math.floor(Math.random() * this.positions.length)];
+            const focus = this.positions[Math.floor(Math.random() * this.positions.length)];
+            this.focuses.push(focus);
+            const [x, y] = focus;
 
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
