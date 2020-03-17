@@ -30,6 +30,10 @@ class App {
     /** @type {CanvasRenderingContext2D} */
     ctx;
     margin = 50;
+    itemRadius = 1;
+
+    /** @type {HTMLElement} */
+    console = document.getElementById("console");
 
     limits = new BoundingBox();
     /** @type {[Number, Number][]} */
@@ -67,6 +71,7 @@ class App {
                 this.limits.add(...coordinates);
                 this.positions.push(coordinates);
             }
+            this.log(`Items loaded: ${this.positions.length}`);
             this.resize();
         }
     }
@@ -85,20 +90,24 @@ class App {
         const screenHeight = this.height - 2 * this.margin;
 
         this.ctx.clearRect(0, 0, this.width, this.height);
-
         this.ctx.fillStyle = this.itemColor;
 
         for (const [x, y] of this.positions) {
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
             this.ctx.beginPath();
-            this.ctx.ellipse(cx, cy, 3, 3, 0, 0, TAU, false);
+            this.ctx.fillRect(cx, cy, this.itemRadius, this.itemRadius);
+            // this.ctx.ellipse(cx, cy, this.itemRadius, this.itemRadius, 0, 0, TAU, false);
             this.ctx.fill();
         }
     }
 
     update() {
         requestAnimationFrame(this.updateFn);
+    }
+
+    log(msg) {
+        this.console.innerText += msg + "\n";
     }
 }
 
