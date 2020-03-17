@@ -40,15 +40,15 @@ class App {
     width = 0;
     height = 0;
     /** @type {HTMLCanvasElement} */
-    itemsCanvas;
+    playersCanvas;
     /** @type {CanvasRenderingContext2D} */
-    itemsCtx;
+    playersCtx;
     /** @type {HTMLCanvasElement} */
     focusesCanvas;
     /** @type {CanvasRenderingContext2D} */
     focusesCtx;
     margin = 50;
-    itemRadius = 1;
+    playerRadius = 1;
 
     /** @type {HTMLElement} */
     console = document.getElementById("console");
@@ -60,7 +60,7 @@ class App {
     focuses = [];
 
     backgroundColor = readCssVar("background-color");
-    itemColor = readCssVar("item-color");
+    playerColor = readCssVar("player-color");
 
     numberOfFocuses = 3;
     focusColors = [
@@ -72,10 +72,10 @@ class App {
     focusRadius = 5;
 
     constructor () {
-        this.itemsCanvas = document.createElement("canvas");
-        this.itemsCanvas.setAttribute("id", "items-canvas");
-        this.itemsCtx = this.itemsCanvas.getContext("2d");
-        document.body.appendChild(this.itemsCanvas);
+        this.playersCanvas = document.createElement("canvas");
+        this.playersCanvas.setAttribute("id", "players-canvas");
+        this.playersCtx = this.playersCanvas.getContext("2d");
+        document.body.appendChild(this.playersCanvas);
 
         this.focusesCanvas = document.createElement("canvas");
         this.focusesCanvas.setAttribute("id", "focuses-canvas");
@@ -113,7 +113,7 @@ class App {
                 this.positions.push(coordinates);
             }
 
-            this.log(`Items loaded: ${this.positions.length}`);
+            this.log(`Players loaded: ${this.positions.length}`);
             this.log(`Box top: ${this.limits.top}`);
             this.log(`Box right: ${this.limits.right}`);
             this.log(`Box bottom: ${this.limits.bottom}`);
@@ -155,8 +155,8 @@ class App {
         this.height = window.innerHeight;
         const widthStr = this.width.toString();
         const heightStr = this.height.toString();
-        this.itemsCanvas.setAttribute("width", widthStr);
-        this.itemsCanvas.setAttribute("height", heightStr);
+        this.playersCanvas.setAttribute("width", widthStr);
+        this.playersCanvas.setAttribute("height", heightStr);
         this.focusesCanvas.setAttribute("width", widthStr);
         this.focusesCanvas.setAttribute("height", heightStr);
     }
@@ -165,13 +165,13 @@ class App {
         const screenWidth = this.width - 2 * this.margin;
         const screenHeight = this.height - 2 * this.margin;
 
-        this.itemsCtx.clearRect(0, 0, this.width, this.height);
-        this.itemsCtx.fillStyle = this.itemColor;
+        this.playersCtx.clearRect(0, 0, this.width, this.height);
+        this.playersCtx.fillStyle = this.playerColor;
 
         for (const [x, y] of this.positions) {
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
-            this.itemsCtx.fillRect(cx, cy, this.itemRadius, this.itemRadius);
+            this.playersCtx.fillRect(cx, cy, this.playerRadius, this.playerRadius);
         }
     }
 
