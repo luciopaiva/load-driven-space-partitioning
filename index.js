@@ -26,9 +26,13 @@ class App {
     width = 0;
     height = 0;
     /** @type {HTMLCanvasElement} */
-    canvas;
+    itemsCanvas;
     /** @type {CanvasRenderingContext2D} */
-    ctx;
+    itemsCtx;
+    /** @type {HTMLCanvasElement} */
+    focusesCanvas;
+    /** @type {CanvasRenderingContext2D} */
+    focusesCtx;
     margin = 50;
     itemRadius = 1;
 
@@ -54,9 +58,15 @@ class App {
     focusRadius = 5;
 
     constructor () {
-        this.canvas = document.createElement("canvas");
-        this.ctx = this.canvas.getContext("2d");
-        document.body.appendChild(this.canvas);
+        this.itemsCanvas = document.createElement("canvas");
+        this.itemsCanvas.setAttribute("id", "items-canvas");
+        this.itemsCtx = this.itemsCanvas.getContext("2d");
+        document.body.appendChild(this.itemsCanvas);
+
+        this.focusesCanvas = document.createElement("canvas");
+        this.focusesCanvas.setAttribute("id", "focuses-canvas");
+        this.focusesCtx = this.focusesCanvas.getContext("2d");
+        document.body.appendChild(this.focusesCanvas);
 
         this.initialize();
 
@@ -65,6 +75,8 @@ class App {
 
         this.updateFn = this.update.bind(this);
         // this.update(performance.now());
+
+        document.body.addEventListener("keypress", this.keypress.bind(this));
     }
 
     /**
@@ -97,24 +109,34 @@ class App {
         this.pickAndDrawFocuses();
     }
 
+    keypress(event) {
+        if (event.key === " ") {
+            this.pickAndDrawFocuses();
+        }
+    }
+
     resize() {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
-        this.canvas.setAttribute("width", this.width.toString());
-        this.canvas.setAttribute("height", this.height.toString());
+        const widthStr = this.width.toString();
+        const heightStr = this.height.toString();
+        this.itemsCanvas.setAttribute("width", widthStr);
+        this.itemsCanvas.setAttribute("height", heightStr);
+        this.focusesCanvas.setAttribute("width", widthStr);
+        this.focusesCanvas.setAttribute("height", heightStr);
     }
 
     drawPositions() {
         const screenWidth = this.width - 2 * this.margin;
         const screenHeight = this.height - 2 * this.margin;
 
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        this.ctx.fillStyle = this.itemColor;
+        this.itemsCtx.clearRect(0, 0, this.width, this.height);
+        this.itemsCtx.fillStyle = this.itemColor;
 
         for (const [x, y] of this.positions) {
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
-            this.ctx.fillRect(cx, cy, this.itemRadius, this.itemRadius);
+            this.itemsCtx.fillRect(cx, cy, this.itemRadius, this.itemRadius);
         }
     }
 
@@ -122,7 +144,7 @@ class App {
         const screenWidth = this.width - 2 * this.margin;
         const screenHeight = this.height - 2 * this.margin;
 
-        this.ctx.fillStyle = this.itemColor;
+        this.focusesCtx.clearRect(0, 0, this.width, this.height);
 
         this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
@@ -133,10 +155,10 @@ class App {
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
 
-            this.ctx.fillStyle = this.focusColors[fi];
-            this.ctx.beginPath();
-            this.ctx.ellipse(cx, cy, this.focusRadius, this.focusRadius, 0, 0, TAU, false);
-            this.ctx.fill();
+            this.focusesCtx.fillStyle = this.focusColors[fi];
+            this.focusesCtx.beginPath();
+            this.focusesCtx.ellipse(cx, cy, this.focusRadius, this.focusRadius, 0, 0, TAU, false);
+            this.focusesCtx.fill();
         }
     }
 

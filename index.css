@@ -29,3 +29,9 @@ body {
     color: var(--text-color);
     font-family: monospace;
 }
+
+canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
