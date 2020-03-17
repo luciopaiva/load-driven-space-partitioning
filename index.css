@@ -28,6 +28,7 @@ body {
     white-space: pre;
     color: var(--text-color);
     font-family: monospace;
+    overflow: auto;
 }
 
 canvas {

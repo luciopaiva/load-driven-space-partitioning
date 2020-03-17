@@ -3,6 +3,7 @@ import {readCssVar} from "./utils.js";
 import GridSpatialIndex from "./grid-spatial-index.js";
 
 const TAU = Math.PI * 2;
+const SPATIAL_INDEX_CELL_EXPONENT = 14;  // cell side of approx. 164 meters (16384 cm)
 
 class BoundingBox {
     left = 0;
@@ -59,6 +60,9 @@ class App {
     /** @type {[Number, Number][]} */
     focuses = [];
 
+    /** @type {GridSpatialIndex} */
+    spatialIndex;
+
     backgroundColor = readCssVar("background-color");
     playerColor = readCssVar("player-color");
 
@@ -96,9 +100,10 @@ class App {
      * @return {void}
      */
     async initialize() {
+        this.clearLog();
+
         await this.fetchAndProcessPlayersPositions();
 
-        this.clearLog();
         this.resize();
         this.drawPlayers();
 
@@ -130,6 +135,7 @@ class App {
             this.log(`Box left: ${this.limits.left}`);
             this.log("Normalizing...");
 
+            // must normalize so all coordinates are >= 0 (a limitation of the spatial index)
             for (const position of this.positions) {
                 position[0] -= this.limits.left;
                 position[1] -= this.limits.top;
@@ -143,6 +149,12 @@ class App {
             this.log(`Box right: ${this.limits.right}`);
             this.log(`Box bottom: ${this.limits.bottom}`);
             this.log(`Box left: ${this.limits.left}`);
+
+            this.spatialIndex = new GridSpatialIndex(SPATIAL_INDEX_CELL_EXPONENT, this.limits.right, this.limits.height);
+            this.log(`Spatial index cell count: ${this.spatialIndex.totalCellCount}`);
+            for (let i = 0; i < this.positions; i++) {
+                this.spatialIndex.insert(i, this.positions[i][0], this.positions[i][1]);
+            }
         }
     }
 
