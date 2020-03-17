@@ -58,8 +58,8 @@ class GridSpatialIndexCell {
 /**
  * A very simple (but yet efficient) spatial index.
  *
- * Divides the board into square cells of a fixed size. A cell's size is always a power of 2, so inserting and querying
- * operations are done fast due to the use of bitwise operations.
+ * Divides the board into square cells of fixed size. A cell's size is always a power of 2, so inserting and querying
+ * operations are fast due to the use of bitwise operations.
  */
 export default class GridSpatialIndex {
 

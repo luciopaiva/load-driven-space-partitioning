@@ -1,15 +1,20 @@
 
 import {readCssVar} from "./utils.js";
+import GridSpatialIndex from "./grid-spatial-index.js";
 
 const TAU = Math.PI * 2;
 
 class BoundingBox {
-    left = Number.POSITIVE_INFINITY;
-    right = Number.NEGATIVE_INFINITY;
-    top = Number.POSITIVE_INFINITY;
-    bottom = Number.NEGATIVE_INFINITY;
+    left = 0;
+    right = 0;
+    top = 0;
+    bottom = 0;
     width = 0;
     height = 0;
+
+    BoundingBox() {
+        this.reset();
+    }
 
     add(x, y) {
         if (x < this.left) this.left = x;
@@ -18,6 +23,15 @@ class BoundingBox {
         if (y > this.bottom) this.bottom = y;
         this.width = this.right - this.left;
         this.height = this.bottom - this.top;
+    }
+
+    reset() {
+        this.left = Number.POSITIVE_INFINITY;
+        this.right = Number.NEGATIVE_INFINITY;
+        this.top = Number.POSITIVE_INFINITY;
+        this.bottom = Number.NEGATIVE_INFINITY;
+        this.width = 0;
+        this.height = 0;
     }
 }
 
@@ -90,6 +104,7 @@ class App {
             const mapToFloat = parseFloat.bind(window);
 
             this.positions = [];
+            this.limits.reset();
 
             for (const line of lines) {
                 const rawCoordinates = line.split("\t");
@@ -99,6 +114,26 @@ class App {
             }
 
             this.log(`Items loaded: ${this.positions.length}`);
+            this.log(`Box top: ${this.limits.top}`);
+            this.log(`Box right: ${this.limits.right}`);
+            this.log(`Box bottom: ${this.limits.bottom}`);
+            this.log(`Box left: ${this.limits.left}`);
+            this.log("Normalizing...");
+
+            for (const position of this.positions) {
+                position[0] -= this.limits.left;
+                position[1] -= this.limits.top;
+            }
+
+            this.limits.reset();
+            for (const position of this.positions) {
+                this.limits.add(...position);
+            }
+            this.log(`Box top: ${this.limits.top}`);
+            this.log(`Box right: ${this.limits.right}`);
+            this.log(`Box bottom: ${this.limits.bottom}`);
+            this.log(`Box left: ${this.limits.left}`);
+
             this.reload();
         }
     }
