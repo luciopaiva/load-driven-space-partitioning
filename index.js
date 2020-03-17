@@ -42,6 +42,15 @@ class App {
     backgroundColor = readCssVar("background-color");
     itemColor = readCssVar("item-color");
 
+    numberOfFocuses = 3;
+    focusColors = [
+        readCssVar("focus-color-1"),
+        readCssVar("focus-color-2"),
+        readCssVar("focus-color-3"),
+        readCssVar("focus-color-4"),
+    ];
+    focusRadius = 5;
+
     constructor () {
         this.canvas = document.createElement("canvas");
         this.ctx = this.canvas.getContext("2d");
@@ -53,7 +62,7 @@ class App {
         this.resize();
 
         this.updateFn = this.update.bind(this);
-        this.update(performance.now());
+        // this.update(performance.now());
     }
 
     /**
@@ -72,8 +81,14 @@ class App {
                 this.positions.push(coordinates);
             }
             this.log(`Items loaded: ${this.positions.length}`);
-            this.resize();
+            this.reload();
         }
+    }
+
+    reload() {
+        this.resize();
+        this.drawPositions();
+        this.pickAndDrawFocuses();
     }
 
     resize() {
@@ -81,8 +96,6 @@ class App {
         this.height = window.innerHeight;
         this.canvas.setAttribute("width", this.width.toString());
         this.canvas.setAttribute("height", this.height.toString());
-
-        this.drawPositions();
     }
 
     drawPositions() {
@@ -95,9 +108,25 @@ class App {
         for (const [x, y] of this.positions) {
             const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
             const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
-            this.ctx.beginPath();
             this.ctx.fillRect(cx, cy, this.itemRadius, this.itemRadius);
-            // this.ctx.ellipse(cx, cy, this.itemRadius, this.itemRadius, 0, 0, TAU, false);
+        }
+    }
+
+    pickAndDrawFocuses() {
+        const screenWidth = this.width - 2 * this.margin;
+        const screenHeight = this.height - 2 * this.margin;
+
+        this.ctx.fillStyle = this.itemColor;
+
+        for (let fi = 0; fi < this.numberOfFocuses; fi++) {
+            const [x, y] = this.positions[Math.floor(Math.random() * this.positions.length)];
+
+            const cx = this.margin + screenWidth * (x - this.limits.left) / this.limits.width;
+            const cy = this.margin + screenHeight * (y - this.limits.top) / this.limits.height;
+
+            this.ctx.fillStyle = this.focusColors[fi];
+            this.ctx.beginPath();
+            this.ctx.ellipse(cx, cy, this.focusRadius, this.focusRadius, 0, 0, TAU, false);
             this.ctx.fill();
         }
     }
