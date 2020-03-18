@@ -1,6 +1,7 @@
 
 import {readCssVar, euclideanDistanceSquared} from "./utils.js";
 import GridSpatialIndex from "./grid-spatial-index.js";
+import GrahamScan from "./node_modules/@lucio/graham-scan/graham-scan.mjs";
 
 const TAU = Math.PI * 2;
 const SPATIAL_INDEX_CELL_EXPONENT = 14;  // cell side of approx. 164 meters (16384 cm)
@@ -61,9 +62,7 @@ class App {
     playerPositions = [];
     /** @type {[Number, Number][]} */
     focuses = [];
-    /** @type {Number[][]} */
-    playerIndexesByFocusIndex = [];
-    /** @type {[Number,Number][][]} */
+    /** @type {GrahamScan[]} */
     hullVerticesByFocusIndex = [];
 
     /** @type {GridSpatialIndex} */
@@ -205,9 +204,13 @@ class App {
         }
 
         // assign players to nearest focus
-        this.playerIndexesByFocusIndex = Array.from(new Array(this.numberOfFocuses), () => []);
-        for (let playerIndex = 0; playerIndex < this.playerPositions.length; playerIndex++) {
-            const position = this.playerPositions[playerIndex];
+        this.hullVerticesByFocusIndex = [];
+        for (let i = 0; i < this.numberOfFocuses; i++) {
+            this.hullVerticesByFocusIndex.push(new GrahamScan());
+        }
+
+        for (let i = 0; i < this.playerPositions.length; i++) {
+            const position = this.playerPositions[i];
             let closestFocusIndex = -1;
             let closestFocusDistanceSquared = Number.POSITIVE_INFINITY;
             for (let fi = 0; fi < this.focuses.length; fi++) {
@@ -218,64 +221,8 @@ class App {
                     closestFocusDistanceSquared = distanceSquared;
                 }
             }
-            this.playerIndexesByFocusIndex[closestFocusIndex].push(playerIndex);
+            this.hullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
         }
-
-        this.hullVerticesByFocusIndex = [];
-        for (let focusIndex = 0; focusIndex < this.focuses.length; focusIndex++) {
-            this.hullVerticesByFocusIndex.push(this.grahamScan(this.playerIndexesByFocusIndex[focusIndex]));
-        }
-    }
-
-    /**
-     * Returns the smallest convex hull of a given set of points. Runs in O(n log n).
-     *
-     * @param {Number[]} playerIndexes
-     * @return {[Number, Number][]}
-     */
-    grahamScan(playerIndexes) {
-        if (playerIndexes < 3) {
-            return [];
-        }
-
-        // find bottom-most player
-        let bottomMostPlayerIndex = -1;
-        let bottomMostY = Number.POSITIVE_INFINITY;
-        let p0 = null;
-        for (const playerIndex of playerIndexes) {
-            const position = this.playerPositions[playerIndex];
-            const y = position[1];
-            if (y < bottomMostY) {
-                bottomMostY = y;
-                bottomMostPlayerIndex = playerIndex;
-                p0 = position;
-            }
-        }
-
-        // this.focusesCtx.fillStyle = "white";
-        // this.focusesCtx.beginPath();
-        // this.focusesCtx.ellipse(...this.mapSpaceToCanvasCoordinate(...p0), this.focusRadius, this.focusRadius, 0, 0, TAU, false);
-        // this.focusesCtx.fill();
-
-        // sort by polar angle from p0
-        playerIndexes.sort((a, b) =>
-            this.crossProduct(...p0, ...this.playerPositions[a], ...this.playerPositions[b]));
-
-        // compute the hull
-        const hull = [p0, this.playerPositions[playerIndexes[0]]];
-        for (let i = 1; i < playerIndexes.length; i++) {
-            const position = this.playerPositions[playerIndexes[i]];
-            while (hull.length > 1 && this.crossProduct(...hull[hull.length - 2], ...hull[hull.length - 1], ...position) > 0) {
-                hull.pop();
-            }
-            hull.push(position);
-        }
-
-        return hull;
-    }
-
-    crossProduct(x1, y1, x2, y2, x3, y3) {
-        return (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
     }
 
     drawHullsAndFocuses() {
@@ -291,7 +238,7 @@ class App {
         }
 
         for (let fi = 0; fi < this.hullVerticesByFocusIndex.length; fi++) {
-            const hull = this.hullVerticesByFocusIndex[fi];
+            const hull = this.hullVerticesByFocusIndex[fi].getHull();
 
             this.focusesCtx.strokeStyle = this.focusColors[fi];
             this.focusesCtx.beginPath();

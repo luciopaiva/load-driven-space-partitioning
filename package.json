@@ -1,0 +1,23 @@
+{
+  "name": "partitioning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luciopaiva/load-driven-space-partitioning.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/luciopaiva/load-driven-space-partitioning/issues"
+  },
+  "homepage": "https://github.com/luciopaiva/load-driven-space-partitioning#readme",
+  "dependencies": {
+    "@lucio/graham-scan": "^1.0.0"
+  }
+}
