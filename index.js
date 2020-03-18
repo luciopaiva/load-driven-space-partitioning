@@ -40,6 +40,8 @@ class App {
 
     width = 0;
     height = 0;
+    netCanvasWidth = 0;
+    netCanvasHeight = 0;
     /** @type {HTMLCanvasElement} */
     playersCanvas;
     /** @type {CanvasRenderingContext2D} */
@@ -61,14 +63,15 @@ class App {
     focuses = [];
     /** @type {Number[][]} */
     playerIndexesByFocusIndex = [];
+    /** @type {[Number,Number][][]} */
+    hullVerticesByFocusIndex = [];
 
     /** @type {GridSpatialIndex} */
     spatialIndex;
 
-    backgroundColor = readCssVar("background-color");
     playerColor = readCssVar("player-color");
 
-    numberOfFocuses = 3;
+    numberOfFocuses = 4;
     focusColors = [
         readCssVar("focus-color-1"),
         readCssVar("focus-color-2"),
@@ -93,7 +96,6 @@ class App {
         window.addEventListener("resize", this.onResize.bind(this));
 
         this.updateFn = this.update.bind(this);
-        // this.update(performance.now());
 
         document.body.addEventListener("keypress", this.onKeypress.bind(this));
     }
@@ -110,7 +112,7 @@ class App {
         this.drawPlayers();
 
         this.pickFocuses();
-        this.drawFocuses();
+        this.drawHullsAndFocuses();
     }
 
     async fetchAndProcessPlayersPositions() {
@@ -163,19 +165,21 @@ class App {
     onKeypress(event) {
         if (event.key === " ") {
             this.pickFocuses();
-            this.drawFocuses();
+            this.drawHullsAndFocuses();
         }
     }
 
     onResize() {
         this.resize();
         this.drawPlayers();
-        this.drawFocuses();
+        this.drawHullsAndFocuses();
     }
 
     resize() {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
+        this.netCanvasWidth = this.width - 2 * this.margin;
+        this.netCanvasHeight = this.height - 2 * this.margin;
         const widthStr = this.width.toString();
         const heightStr = this.height.toString();
         this.playersCanvas.setAttribute("width", widthStr);
@@ -185,16 +189,11 @@ class App {
     }
 
     drawPlayers() {
-        const screenWidth = this.width - 2 * this.margin;
-        const screenHeight = this.height - 2 * this.margin;
-
         this.playersCtx.clearRect(0, 0, this.width, this.height);
         this.playersCtx.fillStyle = this.playerColor;
 
         for (const [x, y] of this.playerPositions) {
-            const cx = this.margin + screenWidth * (x - this.boundingBox.left) / this.boundingBox.width;
-            const cy = this.margin + screenHeight * (y - this.boundingBox.top) / this.boundingBox.height;
-            this.playersCtx.fillRect(cx, cy, this.playerRadius, this.playerRadius);
+            this.playersCtx.fillRect(...this.mapSpaceToCanvasCoordinate(x, y), this.playerRadius, this.playerRadius);
         }
     }
 
@@ -205,6 +204,7 @@ class App {
             this.focuses.push(focus);
         }
 
+        // assign players to nearest focus
         this.playerIndexesByFocusIndex = Array.from(new Array(this.numberOfFocuses), () => []);
         for (let playerIndex = 0; playerIndex < this.playerPositions.length; playerIndex++) {
             const position = this.playerPositions[playerIndex];
@@ -221,26 +221,99 @@ class App {
             this.playerIndexesByFocusIndex[closestFocusIndex].push(playerIndex);
         }
 
-        console.info(this.playerIndexesByFocusIndex);
+        this.hullVerticesByFocusIndex = [];
+        for (let focusIndex = 0; focusIndex < this.focuses.length; focusIndex++) {
+            this.hullVerticesByFocusIndex.push(this.grahamScan(this.playerIndexesByFocusIndex[focusIndex]));
+        }
     }
 
-    drawFocuses() {
-        const screenWidth = this.width - 2 * this.margin;
-        const screenHeight = this.height - 2 * this.margin;
+    /**
+     * Returns the smallest convex hull of a given set of points. Runs in O(n log n).
+     *
+     * @param {Number[]} playerIndexes
+     * @return {[Number, Number][]}
+     */
+    grahamScan(playerIndexes) {
+        if (playerIndexes < 3) {
+            return [];
+        }
 
+        // find bottom-most player
+        let bottomMostPlayerIndex = -1;
+        let bottomMostY = Number.POSITIVE_INFINITY;
+        let p0 = null;
+        for (const playerIndex of playerIndexes) {
+            const position = this.playerPositions[playerIndex];
+            const y = position[1];
+            if (y < bottomMostY) {
+                bottomMostY = y;
+                bottomMostPlayerIndex = playerIndex;
+                p0 = position;
+            }
+        }
+
+        // this.focusesCtx.fillStyle = "white";
+        // this.focusesCtx.beginPath();
+        // this.focusesCtx.ellipse(...this.mapSpaceToCanvasCoordinate(...p0), this.focusRadius, this.focusRadius, 0, 0, TAU, false);
+        // this.focusesCtx.fill();
+
+        // sort by polar angle from p0
+        playerIndexes.sort((a, b) =>
+            this.crossProduct(...p0, ...this.playerPositions[a], ...this.playerPositions[b]));
+
+        // compute the hull
+        const hull = [p0, this.playerPositions[playerIndexes[0]]];
+        for (let i = 1; i < playerIndexes.length; i++) {
+            const position = this.playerPositions[playerIndexes[i]];
+            while (hull.length > 1 && this.crossProduct(...hull[hull.length - 2], ...hull[hull.length - 1], ...position) > 0) {
+                hull.pop();
+            }
+            hull.push(position);
+        }
+
+        return hull;
+    }
+
+    crossProduct(x1, y1, x2, y2, x3, y3) {
+        return (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
+    }
+
+    drawHullsAndFocuses() {
         this.focusesCtx.clearRect(0, 0, this.width, this.height);
 
         for (let fi = 0; fi < this.focuses.length; fi++) {
-            const [x, y] = this.focuses[fi];
-
-            const cx = this.margin + screenWidth * (x - this.boundingBox.left) / this.boundingBox.width;
-            const cy = this.margin + screenHeight * (y - this.boundingBox.top) / this.boundingBox.height;
+            const [x, y] = this.mapSpaceToCanvasCoordinate(...this.focuses[fi]);
 
             this.focusesCtx.fillStyle = this.focusColors[fi];
             this.focusesCtx.beginPath();
-            this.focusesCtx.ellipse(cx, cy, this.focusRadius, this.focusRadius, 0, 0, TAU, false);
+            this.focusesCtx.ellipse(x, y, this.focusRadius, this.focusRadius, 0, 0, TAU, false);
             this.focusesCtx.fill();
         }
+
+        for (let fi = 0; fi < this.hullVerticesByFocusIndex.length; fi++) {
+            const hull = this.hullVerticesByFocusIndex[fi];
+
+            this.focusesCtx.strokeStyle = this.focusColors[fi];
+            this.focusesCtx.beginPath();
+            this.focusesCtx.moveTo(...this.mapSpaceToCanvasCoordinate(...hull[0]));
+            for (let hi = 1; hi < hull.length; hi++) {
+                this.focusesCtx.lineTo(...this.mapSpaceToCanvasCoordinate(...hull[hi]));
+            }
+            this.focusesCtx.closePath();
+            this.focusesCtx.stroke();
+        }
+    }
+
+    /**
+     * @param x
+     * @param y
+     * @return {[Number, Number]}
+     */
+    mapSpaceToCanvasCoordinate(x, y) {
+        return [
+            this.margin + this.netCanvasWidth * (x - this.boundingBox.left) / this.boundingBox.width,
+            this.margin + this.netCanvasHeight * (y - this.boundingBox.top) / this.boundingBox.height
+        ];
     }
 
     update() {
