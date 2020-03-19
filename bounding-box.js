@@ -7,7 +7,7 @@ export default class BoundingBox {
     width = 0;
     height = 0;
 
-    BoundingBox() {
+    constructor () {
         this.reset();
     }
 

@@ -1,6 +1,5 @@
 
 import {readCssVar} from "./utils.js";
-import BoundingBox from "./bounding-box.js";
 import Partitioner from "./partitioner.js";
 
 const TAU = Math.PI * 2;
