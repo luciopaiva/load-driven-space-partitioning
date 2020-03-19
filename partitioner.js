@@ -5,6 +5,9 @@ import BoundingBox from "./bounding-box.js";
 import {euclideanDistanceSquared} from "./utils.js";
 
 const SPATIAL_INDEX_CELL_EXPONENT = 14;  // cell side of approx. 164 meters (16384 cm)
+const X = 0;
+const Y = 1;
+const NEIGHBOR_COUNT = 100;
 
 export default class Partitioner {
 
@@ -13,10 +16,14 @@ export default class Partitioner {
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
+    /** @type {Map<Number, Number[]>} */
+    neighborsByPlayerIndex = new Map();
     /** @type {[Number, Number][]} */
     focuses = [];
     /** @type {GrahamScan[]} */
-    hullVerticesByFocusIndex = [];
+    innerHullVerticesByFocusIndex = [];
+    /** @type {GrahamScan[]} */
+    outerHullVerticesByFocusIndex = [];
     /** @type {BoundingBox} */
     boundingBox;
 
@@ -27,7 +34,7 @@ export default class Partitioner {
         this.numberOfFocuses = numberOfFocuses;
     }
 
-    reset() {
+    resetPlayerPositions() {
         this.playerPositions = [];
         this.boundingBox = new BoundingBox();
     }
@@ -45,8 +52,12 @@ export default class Partitioner {
         return this.focuses;
     }
 
-    obtainHulls() {
-        return this.hullVerticesByFocusIndex.map(vertices => vertices.getHull());
+    obtainInnerHulls() {
+        return this.innerHullVerticesByFocusIndex.map(vertices => vertices.getHull());
+    }
+
+    obtainOuterHulls() {
+        return this.outerHullVerticesByFocusIndex.map(vertices => vertices.getHull());
     }
 
     getNumberOfPlayers() {
@@ -57,17 +68,25 @@ export default class Partitioner {
         return this.playerPositions;
     }
 
-    pickFocuses() {
+    randomizeFocuses() {
         this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
             const focus = this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)];
             this.focuses.push(focus);
         }
 
-        // assign players to nearest focus
-        this.hullVerticesByFocusIndex = [];
+        this.assignPlayersToFocuses();
+    }
+
+    assignPlayersToFocuses() {
+        this.innerHullVerticesByFocusIndex = [];
+        this.outerHullVerticesByFocusIndex = [];
+        const interestSetByFocusIndex = /** @type {Set<Number>[]} */ [];
+
         for (let i = 0; i < this.numberOfFocuses; i++) {
-            this.hullVerticesByFocusIndex.push(new GrahamScan());
+            this.innerHullVerticesByFocusIndex.push(new GrahamScan());
+            this.outerHullVerticesByFocusIndex.push(new GrahamScan());
+            interestSetByFocusIndex.push(new Set());
         }
 
         for (let i = 0; i < this.playerPositions.length; i++) {
@@ -82,11 +101,24 @@ export default class Partitioner {
                     closestFocusDistanceSquared = distanceSquared;
                 }
             }
-            this.hullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
+
+            this.innerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
+
+            for (const neighborIndex of this.neighborsByPlayerIndex.get(i)) {
+                interestSetByFocusIndex[closestFocusIndex].add(neighborIndex);
+            }
+        }
+
+        for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
+            const playerIndexes = interestSetByFocusIndex[focusIndex];
+            for (const playerIndex of playerIndexes) {
+                const playerPosition = this.playerPositions[playerIndex];
+                this.outerHullVerticesByFocusIndex[focusIndex].addPoint(playerPosition);
+            }
         }
     }
 
-    update() {
+    processPlayerPositions() {
         // must normalize so all coordinates are >= 0 (a limitation of the spatial index)
         for (const position of this.playerPositions) {
             position[0] -= this.boundingBox.left;
@@ -102,6 +134,12 @@ export default class Partitioner {
         for (let i = 0; i < this.playerPositions.length; i++) {
             const position = this.playerPositions[i];
             this.spatialIndex.insert(i, ...position);
+        }
+
+        for (let i = 0; i < this.playerPositions.length; i++) {
+            const position = this.playerPositions[i];
+            const neighbors = this.spatialIndex.queryByCount(position[X], position[Y], NEIGHBOR_COUNT);
+            this.neighborsByPlayerIndex.set(i, /** @type {Number[]} */ neighbors);
         }
     }
 }

@@ -67,7 +67,7 @@ class App {
         this.resize();
         this.drawPlayers();
 
-        this.partitioner.pickFocuses();
+        this.partitioner.randomizeFocuses();
         this.drawHullsAndFocuses();
     }
 
@@ -78,7 +78,7 @@ class App {
             const lines = text.split("\n");
             const mapToFloat = parseFloat.bind(window);
 
-            this.partitioner.reset();
+            this.partitioner.resetPlayerPositions();
 
             for (const line of lines) {
                 const rawCoordinates = line.split("\t");
@@ -95,7 +95,7 @@ class App {
             this.log(`Box left: ${boundingBox.left}`);
             this.log("Normalizing...");
 
-            this.partitioner.update();
+            this.partitioner.processPlayerPositions();
 
             this.log(`Box top: ${boundingBox.top}`);
             this.log(`Box right: ${boundingBox.right}`);
@@ -107,7 +107,7 @@ class App {
 
     onKeypress(event) {
         if (event.key === " ") {
-            this.partitioner.pickFocuses();
+            this.partitioner.randomizeFocuses();
             this.drawHullsAndFocuses();
         }
     }
@@ -153,19 +153,28 @@ class App {
             this.focusesCtx.fill();
         }
 
-        const hulls = this.partitioner.obtainHulls();
-        for (let fi = 0; fi < hulls.length; fi++) {
-            const hull = hulls[fi];
+        const innerHulls = this.partitioner.obtainInnerHulls();
+        const outerHulls = this.partitioner.obtainOuterHulls();
+
+        for (let fi = 0; fi < innerHulls.length; fi++) {
+            const innerHull = innerHulls[fi];
+            const outerHull = outerHulls[fi];
 
             this.focusesCtx.strokeStyle = this.focusColors[fi];
-            this.focusesCtx.beginPath();
-            this.focusesCtx.moveTo(...this.mapSpaceToCanvasCoordinate(...hull[0]));
-            for (let hi = 1; hi < hull.length; hi++) {
-                this.focusesCtx.lineTo(...this.mapSpaceToCanvasCoordinate(...hull[hi]));
-            }
-            this.focusesCtx.closePath();
-            this.focusesCtx.stroke();
+
+            this.drawHull(innerHull);
+            this.drawHull(outerHull);
         }
+    }
+
+    drawHull(hull) {
+        this.focusesCtx.beginPath();
+        this.focusesCtx.moveTo(...this.mapSpaceToCanvasCoordinate(...hull[0]));
+        for (let hi = 1; hi < hull.length; hi++) {
+            this.focusesCtx.lineTo(...this.mapSpaceToCanvasCoordinate(...hull[hi]));
+        }
+        this.focusesCtx.closePath();
+        this.focusesCtx.stroke();
     }
 
     /**

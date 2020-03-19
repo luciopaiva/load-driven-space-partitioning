@@ -1,4 +1,6 @@
 
+import {euclideanDistanceSquared} from "./utils.js";
+
 /**
  * Holds a spatial index element. Contains not only the element and its position, as well as an optional data object and
  * a pointer to the next sibling entry in that cell's linked list.
@@ -65,7 +67,7 @@ export default class GridSpatialIndex {
 
     /**
      * The query will return all elements within the grid cells touched by the radius specified. This is the cheapest
-     * option, but can return a lot of wanted elements. */
+     * option, but can return a lot of unwanted elements. */
     static QUERY_MODE_RAW = 0;
     /** The query will return all elements within the circle delimited by the query's radius. This is the most expensive
      * option, as the query will compute the euclidean distance from the reference to each candidate. */
@@ -222,6 +224,88 @@ export default class GridSpatialIndex {
                 if (checkDistance(entry.x, entry.y)) {
                     yield entry.element;
                 }
+            }
+        }
+    }
+
+    /**
+     * @param {Number} x
+     * @param {Number} y
+     * @param {Number} count
+     * @return {Object[]}
+     */
+    queryByCount(x, y, count) {
+        const entries = /** @type {CellEntry} */ [];
+
+        // collect items
+        let level = 0;
+        while (entries.length < count) {
+            level++;
+            let cellCount = 0;
+            for (const cell of this.iterateCellsAtPosition(x, y, level)) {
+                entries.push(...cell.entries.values());
+                cellCount++;
+            }
+            if (cellCount === 0) {
+                break;  // no new cells
+            }
+        }
+
+        // order by distance
+        // ToDo replace this with quick select of first `count` only
+        entries.sort((a, b) => {
+            const distA = euclideanDistanceSquared(x, y, a.x, a.y);
+            const distB = euclideanDistanceSquared(x, y, b.x, b.y);
+            return distA - distB;
+        });
+
+        return entries.slice(0, count).map(entry => entry.element);
+    }
+
+    /**
+     * Starting from a given position, iterates cells in levels, like an onion.
+     *
+     *        +---+
+     *    +-+ |   |
+     * +  | | |   |
+     *    +-+ |   |
+     *        +---+
+     *
+     * @param x
+     * @param y
+     * @param level
+     * @return {Generator<GridSpatialIndexCell>}
+     */
+    *iterateCellsAtPosition(x, y, level) {
+        const centerX = x >>> this.cellSizeExponent;
+        const centerY = y >>> this.cellSizeExponent;
+        const left = Math.max(centerX - (level - 1), 0);
+        const right = Math.min(centerX + (level - 1), this.widthInCells - 1);
+        const top = Math.max(centerY - (level - 1), 0);
+        const bottom = Math.min(centerY + (level - 1), this.heightInCells - 1);
+
+        if (right - left === 0) {
+            const cellIndex = centerY * this.widthInCells + centerX;
+            if (cellIndex < this.cells.length) {
+                yield this.cells[cellIndex];
+            }
+        } else {
+            // first row
+            for (let col = left; col <= right; col++) {
+                const cellIndex = top * this.widthInCells + col;
+                yield this.cells[cellIndex];
+            }
+            // intermediate rows
+            for (let row = top + 1; row < bottom - 1; row++) {
+                const leftCellIndex = row * this.widthInCells + left;
+                yield this.cells[leftCellIndex];
+                const rightCellIndex = row * this.widthInCells + right;
+                yield this.cells[rightCellIndex];
+            }
+            // last row
+            for (let col = left; col <= right; col++) {
+                const cellIndex = bottom * this.widthInCells + col;
+                yield this.cells[cellIndex];
             }
         }
     }

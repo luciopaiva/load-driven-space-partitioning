@@ -17,3 +17,8 @@ Create a file named `scenario.tsv` containing the points representing players. W
     15809.737304687	-7867.32861328125
 
 Then serve the root folder using any simple HTTP server and access `/index.html`.
+
+## To-do
+
+- percentage of players with old clients unaware of the partitioning algorithm
+- focus placement strategy where points are chosen at random inside the bounding box
