@@ -1,41 +1,9 @@
 
-import {readCssVar, euclideanDistanceSquared} from "./utils.js";
-import GridSpatialIndex from "./grid-spatial-index.js";
-import GrahamScan from "./node_modules/@lucio/graham-scan/graham-scan.mjs";
+import {readCssVar} from "./utils.js";
+import BoundingBox from "./bounding-box.js";
+import Partitioner from "./partitioner.js";
 
 const TAU = Math.PI * 2;
-const SPATIAL_INDEX_CELL_EXPONENT = 14;  // cell side of approx. 164 meters (16384 cm)
-
-class BoundingBox {
-    left = 0;
-    right = 0;
-    top = 0;
-    bottom = 0;
-    width = 0;
-    height = 0;
-
-    BoundingBox() {
-        this.reset();
-    }
-
-    add(x, y) {
-        if (x < this.left) this.left = x;
-        if (x > this.right) this.right = x;
-        if (y < this.top) this.top = y;
-        if (y > this.bottom) this.bottom = y;
-        this.width = this.right - this.left;
-        this.height = this.bottom - this.top;
-    }
-
-    reset() {
-        this.left = Number.POSITIVE_INFINITY;
-        this.right = Number.NEGATIVE_INFINITY;
-        this.top = Number.POSITIVE_INFINITY;
-        this.bottom = Number.NEGATIVE_INFINITY;
-        this.width = 0;
-        this.height = 0;
-    }
-}
 
 class App {
 
@@ -57,20 +25,10 @@ class App {
     /** @type {HTMLElement} */
     console = document.getElementById("console");
 
-    boundingBox = new BoundingBox();
-    /** @type {[Number, Number][]} */
-    playerPositions = [];
-    /** @type {[Number, Number][]} */
-    focuses = [];
-    /** @type {GrahamScan[]} */
-    hullVerticesByFocusIndex = [];
-
-    /** @type {GridSpatialIndex} */
-    spatialIndex;
+    partitioner = new Partitioner(4);
 
     playerColor = readCssVar("player-color");
 
-    numberOfFocuses = 4;
     focusColors = [
         readCssVar("focus-color-1"),
         readCssVar("focus-color-2"),
@@ -110,7 +68,7 @@ class App {
         this.resize();
         this.drawPlayers();
 
-        this.pickFocuses();
+        this.partitioner.pickFocuses();
         this.drawHullsAndFocuses();
     }
 
@@ -121,49 +79,36 @@ class App {
             const lines = text.split("\n");
             const mapToFloat = parseFloat.bind(window);
 
-            this.playerPositions = [];
-            this.boundingBox.reset();
+            this.partitioner.reset();
 
             for (const line of lines) {
                 const rawCoordinates = line.split("\t");
                 const coordinates = rawCoordinates.map(mapToFloat);
-                this.boundingBox.add(...coordinates);
-                this.playerPositions.push(coordinates);
+                this.partitioner.addPlayerPosition(coordinates);
             }
 
-            this.log(`Players loaded: ${this.playerPositions.length}`);
-            this.log(`Box top: ${this.boundingBox.top}`);
-            this.log(`Box right: ${this.boundingBox.right}`);
-            this.log(`Box bottom: ${this.boundingBox.bottom}`);
-            this.log(`Box left: ${this.boundingBox.left}`);
+            const boundingBox = this.partitioner.getBoundingBox();
+
+            this.log(`Players loaded: ${this.partitioner.getNumberOfPlayers()}`);
+            this.log(`Box top: ${boundingBox.top}`);
+            this.log(`Box right: ${boundingBox.right}`);
+            this.log(`Box bottom: ${boundingBox.bottom}`);
+            this.log(`Box left: ${boundingBox.left}`);
             this.log("Normalizing...");
 
-            // must normalize so all coordinates are >= 0 (a limitation of the spatial index)
-            for (const position of this.playerPositions) {
-                position[0] -= this.boundingBox.left;
-                position[1] -= this.boundingBox.top;
-            }
+            this.partitioner.update();
 
-            this.boundingBox.reset();
-            for (const position of this.playerPositions) {
-                this.boundingBox.add(...position);
-            }
-            this.log(`Box top: ${this.boundingBox.top}`);
-            this.log(`Box right: ${this.boundingBox.right}`);
-            this.log(`Box bottom: ${this.boundingBox.bottom}`);
-            this.log(`Box left: ${this.boundingBox.left}`);
-
-            this.spatialIndex = new GridSpatialIndex(SPATIAL_INDEX_CELL_EXPONENT, this.boundingBox.right, this.boundingBox.height);
-            this.log(`Spatial index cell count: ${this.spatialIndex.totalCellCount}`);
-            for (let i = 0; i < this.playerPositions; i++) {
-                this.spatialIndex.insert(i, this.playerPositions[i][0], this.playerPositions[i][1]);
-            }
+            this.log(`Box top: ${boundingBox.top}`);
+            this.log(`Box right: ${boundingBox.right}`);
+            this.log(`Box bottom: ${boundingBox.bottom}`);
+            this.log(`Box left: ${boundingBox.left}`);
+            this.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
         }
     }
 
     onKeypress(event) {
         if (event.key === " ") {
-            this.pickFocuses();
+            this.partitioner.pickFocuses();
             this.drawHullsAndFocuses();
         }
     }
@@ -191,45 +136,17 @@ class App {
         this.playersCtx.clearRect(0, 0, this.width, this.height);
         this.playersCtx.fillStyle = this.playerColor;
 
-        for (const [x, y] of this.playerPositions) {
+        for (const [x, y] of this.partitioner.getPlayerPositions()) {
             this.playersCtx.fillRect(...this.mapSpaceToCanvasCoordinate(x, y), this.playerRadius, this.playerRadius);
-        }
-    }
-
-    pickFocuses() {
-        this.focuses = [];
-        for (let fi = 0; fi < this.numberOfFocuses; fi++) {
-            const focus = this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)];
-            this.focuses.push(focus);
-        }
-
-        // assign players to nearest focus
-        this.hullVerticesByFocusIndex = [];
-        for (let i = 0; i < this.numberOfFocuses; i++) {
-            this.hullVerticesByFocusIndex.push(new GrahamScan());
-        }
-
-        for (let i = 0; i < this.playerPositions.length; i++) {
-            const position = this.playerPositions[i];
-            let closestFocusIndex = -1;
-            let closestFocusDistanceSquared = Number.POSITIVE_INFINITY;
-            for (let fi = 0; fi < this.focuses.length; fi++) {
-                const focus = this.focuses[fi];
-                const distanceSquared = euclideanDistanceSquared(...position, ...focus);
-                if (distanceSquared < closestFocusDistanceSquared) {
-                    closestFocusIndex = fi;
-                    closestFocusDistanceSquared = distanceSquared;
-                }
-            }
-            this.hullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
         }
     }
 
     drawHullsAndFocuses() {
         this.focusesCtx.clearRect(0, 0, this.width, this.height);
 
-        for (let fi = 0; fi < this.focuses.length; fi++) {
-            const [x, y] = this.mapSpaceToCanvasCoordinate(...this.focuses[fi]);
+        const focuses = this.partitioner.getFocuses();
+        for (let fi = 0; fi < focuses.length; fi++) {
+            const [x, y] = this.mapSpaceToCanvasCoordinate(...focuses[fi]);
 
             this.focusesCtx.fillStyle = this.focusColors[fi];
             this.focusesCtx.beginPath();
@@ -237,8 +154,9 @@ class App {
             this.focusesCtx.fill();
         }
 
-        for (let fi = 0; fi < this.hullVerticesByFocusIndex.length; fi++) {
-            const hull = this.hullVerticesByFocusIndex[fi].getHull();
+        const hulls = this.partitioner.obtainHulls();
+        for (let fi = 0; fi < hulls.length; fi++) {
+            const hull = hulls[fi];
 
             this.focusesCtx.strokeStyle = this.focusColors[fi];
             this.focusesCtx.beginPath();
@@ -257,9 +175,10 @@ class App {
      * @return {[Number, Number]}
      */
     mapSpaceToCanvasCoordinate(x, y) {
+        const boundingBox = this.partitioner.getBoundingBox();
         return [
-            this.margin + this.netCanvasWidth * (x - this.boundingBox.left) / this.boundingBox.width,
-            this.margin + this.netCanvasHeight * (y - this.boundingBox.top) / this.boundingBox.height
+            this.margin + this.netCanvasWidth * (x - boundingBox.left) / boundingBox.width,
+            this.margin + this.netCanvasHeight * (y - boundingBox.top) / boundingBox.height
         ];
     }
 
