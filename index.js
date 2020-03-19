@@ -72,7 +72,7 @@ class App {
     }
 
     async fetchAndProcessPlayersPositions() {
-        const response = await fetch("./scenario-6.tsv");
+        const response = await fetch("./scenario.tsv");
         if (response.ok) {
             const text = await response.text();
             const lines = text.split("\n");

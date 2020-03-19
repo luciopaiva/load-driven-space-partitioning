@@ -12,4 +12,4 @@ for (const line of lines) {
         output.push(`${z}\t${x}`);
     }
 }
-fs.writeFileSync("scenario-6.tsv", output.join("\n"));
+fs.writeFileSync("scenario.tsv", output.join("\n"));
