@@ -101,13 +101,16 @@ class App {
             this.log(`Box left: ${boundingBox.left}`);
             this.log("Normalizing...");
 
+            const processTimeStart = performance.now();
             this.partitioner.processPlayerPositions();
+            const processElapsed = performance.now() - processTimeStart;
 
             this.log(`Box top: ${boundingBox.top}`);
             this.log(`Box right: ${boundingBox.right}`);
             this.log(`Box bottom: ${boundingBox.bottom}`);
             this.log(`Box left: ${boundingBox.left}`);
             this.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
+            this.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
         }
     }
 

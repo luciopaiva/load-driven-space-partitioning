@@ -4,7 +4,12 @@ import GridSpatialIndex from "./grid-spatial-index.js";
 import BoundingBox from "./bounding-box.js";
 import {euclideanDistanceSquared} from "./utils.js";
 
-const SPATIAL_INDEX_CELL_EXPONENT = 14;  // cell side of approx. 164 meters (16384 cm)
+/**
+ * This dictates the size of the spatial index cell size. Bigger cells mean more players to iterate through, smaller
+ * ones mean more cells to look. The sweet spot here was empirically determined to be 2**13, but it may be different
+ * for different input sets.
+ */
+const SPATIAL_INDEX_CELL_EXPONENT = 13;  // cell side of approx. 82 meters (8192 cm)
 const X = 0;
 const Y = 1;
 const NEIGHBOR_COUNT = 100;
