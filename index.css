@@ -7,6 +7,9 @@
     --focus-color-2: #14bf02;
     --focus-color-3: #2a6fff;
     --focus-color-4: #ff00cc;
+    --margin: 10px;
+    --padding: 10px;
+    --console-width: 300px;
 }
 
 body {
@@ -14,21 +17,29 @@ body {
     padding: 0;
     margin: 0;
     overflow: hidden;
+    color: var(--text-color);
+    font-family: monospace;
 }
 
 #console {
     position: absolute;
-    left: 10px;
-    top: 10px;
-    width: 300px;
+    left: var(--margin);
+    top: var(--margin);
+    width: var(--console-width);
     height: 400px;
-    padding: 10px;
+    padding: var(--padding);
     border: 1px solid gray;
     z-index: 10;
     white-space: pre;
-    color: var(--text-color);
-    font-family: monospace;
     overflow: auto;
+}
+
+#metrics {
+    position: absolute;
+    left: calc(var(--margin) + var(--console-width) + 2 * var(--padding) + var(--margin));
+    top: var(--margin);
+    width: 200px;
+    height: 400px;
 }
 
 canvas {

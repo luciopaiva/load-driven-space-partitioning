@@ -21,6 +21,8 @@ class App {
     margin = 50;
     playerRadius = 1;
 
+    automaticMode = false;
+
     /** @type {HTMLElement} */
     console = document.getElementById("console");
 
@@ -47,11 +49,14 @@ class App {
         this.focusesCtx = this.focusesCanvas.getContext("2d");
         document.body.appendChild(this.focusesCanvas);
 
+        this.runsElement = document.getElementById("number-of-runs");
+
         this.initialize();
 
         window.addEventListener("resize", this.onResize.bind(this));
 
         this.updateFn = this.update.bind(this);
+        requestAnimationFrame(this.updateFn);
 
         document.body.addEventListener("keypress", this.onKeypress.bind(this));
     }
@@ -109,6 +114,8 @@ class App {
         if (event.key === " ") {
             this.partitioner.randomizeFocuses();
             this.drawHullsAndFocuses();
+        } else if (event.key === "r") {
+            this.automaticMode = !this.automaticMode;
         }
     }
 
@@ -160,10 +167,14 @@ class App {
             const innerHull = innerHulls[fi];
             const outerHull = outerHulls[fi];
 
-            this.focusesCtx.strokeStyle = this.focusColors[fi];
+            // It's possible for a hull to be empty. If two focuses coincide to be at the same exact coordinate, one of
+            // them will get all nearby players, while the other will get none.
+            if (innerHull.length > 0) {
+                this.focusesCtx.strokeStyle = this.focusColors[fi];
 
-            this.drawHull(innerHull);
-            this.drawHull(outerHull);
+                this.drawHull(innerHull);
+                this.drawHull(outerHull);
+            }
         }
     }
 
@@ -191,7 +202,16 @@ class App {
     }
 
     update() {
+        if (this.automaticMode) {
+            this.partitioner.randomizeFocuses();
+            this.drawHullsAndFocuses();
+            this.updateHUD();
+        }
         requestAnimationFrame(this.updateFn);
+    }
+
+    updateHUD() {
+        this.runsElement.innerText = this.partitioner.numberOfRuns.toString();
     }
 
     clearLog() {

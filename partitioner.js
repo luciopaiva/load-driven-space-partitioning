@@ -13,6 +13,8 @@ export default class Partitioner {
 
     /** @type {Number} */
     numberOfFocuses = 1;
+    /** @type {Number} */
+    numberOfRuns = 0;
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
@@ -76,6 +78,7 @@ export default class Partitioner {
         }
 
         this.assignPlayersToFocuses();
+        this.numberOfRuns++;
     }
 
     assignPlayersToFocuses() {
