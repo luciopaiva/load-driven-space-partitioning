@@ -15,6 +15,8 @@ export default class Partitioner {
     numberOfFocuses = 1;
     /** @type {Number} */
     numberOfRuns = 0;
+    /** @type {Number} */
+    totalElapsedTime = 0;
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
@@ -71,6 +73,8 @@ export default class Partitioner {
     }
 
     randomizeFocuses() {
+        const start = performance.now();
+
         this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
             const focus = this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)];
@@ -78,6 +82,8 @@ export default class Partitioner {
         }
 
         this.assignPlayersToFocuses();
+
+        this.totalElapsedTime += performance.now() - start;
         this.numberOfRuns++;
     }
 
@@ -86,12 +92,14 @@ export default class Partitioner {
         this.outerHullVerticesByFocusIndex = [];
         const interestSetByFocusIndex = /** @type {Set<Number>[]} */ [];
 
+        // initialize
         for (let i = 0; i < this.numberOfFocuses; i++) {
             this.innerHullVerticesByFocusIndex.push(new GrahamScan());
             this.outerHullVerticesByFocusIndex.push(new GrahamScan());
             interestSetByFocusIndex.push(new Set());
         }
 
+        // assign players to focuses
         for (let i = 0; i < this.playerPositions.length; i++) {
             const position = this.playerPositions[i];
             let closestFocusIndex = -1;
@@ -105,13 +113,16 @@ export default class Partitioner {
                 }
             }
 
+            // update inner hull
             this.innerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
 
+            // update interest set of focus based on assigned player's neighborhood
             for (const neighborIndex of this.neighborsByPlayerIndex.get(i)) {
                 interestSetByFocusIndex[closestFocusIndex].add(neighborIndex);
             }
         }
 
+        // compose outer hull based on consolidated interest set
         for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
             const playerIndexes = interestSetByFocusIndex[focusIndex];
             for (const playerIndex of playerIndexes) {

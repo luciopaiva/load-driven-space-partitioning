@@ -50,6 +50,7 @@ class App {
         document.body.appendChild(this.focusesCanvas);
 
         this.runsElement = document.getElementById("number-of-runs");
+        this.avgRunningTimeElement = document.getElementById("avg-running-time");
 
         this.initialize();
 
@@ -212,6 +213,8 @@ class App {
 
     updateHUD() {
         this.runsElement.innerText = this.partitioner.numberOfRuns.toString();
+        const avg = this.partitioner.totalElapsedTime / this.partitioner.numberOfRuns;
+        this.avgRunningTimeElement.innerText = avg.toFixed(1) + " ms";
     }
 
     clearLog() {
