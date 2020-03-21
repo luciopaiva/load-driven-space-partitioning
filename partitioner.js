@@ -15,7 +15,6 @@ const Y = 1;
 const NEIGHBOR_COUNT = 100;
 const PROC_TIME_MINE_IN_MICROS = 20;
 const PROC_TIME_OTHER_IN_MICROS = 1;
-const MAX_COMFORTABLE_LOAD_FACTOR = 50;
 const PLAYER_STATE_SEND_FREQ_IN_HZ = 5;
 const FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS = 1;
 const FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX = 2;
@@ -23,6 +22,7 @@ const FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX = 2;
 export default class Partitioner {
 
     focusPlacementStrategy = FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX;
+    maxComfortableLoadFactor = 100;
 
     /** @type {Number} */
     numberOfFocuses = 1;
@@ -48,8 +48,10 @@ export default class Partitioner {
     /** @type {GridSpatialIndex} */
     spatialIndex;
 
-    constructor (numberOfFocuses) {
-        this.changeNumberOfFocuses(numberOfFocuses);
+    constructor (numberOfFocuses, maxComfortableLoadFactor) {
+        this.numberOfFocuses = numberOfFocuses;
+        this.maxComfortableLoadFactor = maxComfortableLoadFactor;
+        this.reset();
     }
 
     changeNumberOfFocuses(numberOfFocuses) {
@@ -64,6 +66,11 @@ export default class Partitioner {
 
     setPlacementStrategyPlayerPositions() {
         this.focusPlacementStrategy = FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS;
+        this.reset();
+    }
+
+    setMaxComfortableLoadFactor(maxComfortableLoadFactor) {
+        this.maxComfortableLoadFactor = maxComfortableLoadFactor;
         this.reset();
     }
 
@@ -194,7 +201,7 @@ export default class Partitioner {
 
             const loadFactor = 100 * (totalTimeInMicros / 1_000_000);  // between 0 and 100%
 
-            if (loadFactor > MAX_COMFORTABLE_LOAD_FACTOR) {
+            if (loadFactor > this.maxComfortableLoadFactor) {
                 snapshot.isWithinComfortableLFThreshold = false;
                 this.numberOfFailures++;
                 return false;

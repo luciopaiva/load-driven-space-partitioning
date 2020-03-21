@@ -6,11 +6,13 @@ import Partitioner from "./partitioner.js";
 const TAU = Math.PI * 2;
 const STRATEGY_BOUNDING_BOX = "bounding box";
 const STRATEGY_PLAYER_POSITIONS = "player positions";
+const MAX_COMFORTABLE_LOAD_FACTOR = 50;
 
 class Controls {
-    numberOfFocuses = 4;
+    focuses = 4;
     strategy = STRATEGY_BOUNDING_BOX;
     isRunning = true;
+    maxLoadFactor = MAX_COMFORTABLE_LOAD_FACTOR;
 }
 
 class App {
@@ -36,6 +38,7 @@ class App {
     newNumberOfFocuses = 0;
     /** @type {Function} */
     newStrategy = null;
+    newMaxLoadFactor = 0;
 
     playerColor = readCssVar("player-color");
 
@@ -77,7 +80,7 @@ class App {
         window.addEventListener("resize", this.onResize.bind(this));
 
         this.gui.width = this.leftColumnWidth;
-        const numberOfFocusesControl = this.gui.add(this.controls, "numberOfFocuses", 1, 4, 1);
+        const numberOfFocusesControl = this.gui.add(this.controls, "focuses", 1, 4, 1);
         numberOfFocusesControl.onFinishChange(value => {
             if (value !== this.partitioner.numberOfFocuses) {
                 this.newNumberOfFocuses = value;
@@ -90,6 +93,12 @@ class App {
                 this.newStrategy = this.partitioner.setPlacementStrategyPlayerPositions.bind(this.partitioner);
             } else if (value === STRATEGY_BOUNDING_BOX) {
                 this.newStrategy = this.partitioner.setPlacementStrategyBoundingBox.bind(this.partitioner);
+            }
+        });
+        const maxLoadFactorControl = this.gui.add(this.controls, "maxLoadFactor", 1, 100, 5);
+        maxLoadFactorControl.onFinishChange(value => {
+            if (value !== this.partitioner.maxComfortableLoadFactor) {
+                this.newMaxLoadFactor = value;
             }
         });
         this.gui.add(this.controls, "isRunning");
@@ -248,6 +257,12 @@ class App {
                 this.focusesCtx.clearRect(0, 0, this.width, this.height);
                 this.newStrategy.call();
                 this.newStrategy = null;
+            }
+
+            if (this.newMaxLoadFactor !== 0) {
+                this.focusesCtx.clearRect(0, 0, this.width, this.height);
+                this.partitioner.setMaxComfortableLoadFactor(this.newMaxLoadFactor);
+                this.newMaxLoadFactor = 0;
             }
 
             this.randomizeFocuses();
