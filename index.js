@@ -151,7 +151,9 @@ class App {
     drawHullsAndFocuses() {
         this.focusesCtx.clearRect(0, 0, this.width, this.height);
 
-        const focuses = this.partitioner.getFocuses();
+        const snapshot = this.partitioner.bestSnapshot;
+
+        const focuses = snapshot.getFocuses();
         for (let fi = 0; fi < focuses.length; fi++) {
             const [x, y] = this.mapSpaceToCanvasCoordinate(...focuses[fi]);
 
@@ -161,8 +163,8 @@ class App {
             this.focusesCtx.fill();
         }
 
-        const innerHulls = this.partitioner.obtainInnerHulls();
-        const outerHulls = this.partitioner.obtainOuterHulls();
+        const innerHulls = snapshot.obtainInnerHulls();
+        const outerHulls = snapshot.obtainOuterHulls();
 
         for (let fi = 0; fi < innerHulls.length; fi++) {
             const innerHull = innerHulls[fi];
@@ -218,6 +220,7 @@ class App {
     }
 
     updateHUD(shouldUpdatePartitioningMetrics) {
+
         this.runsElement.innerText = this.partitioner.numberOfRuns.toString();
         const avg = this.partitioner.totalElapsedTime / this.partitioner.numberOfRuns;
         this.avgRunningTimeElement.innerText = avg.toFixed(1) + " ms";
@@ -229,11 +232,14 @@ class App {
             const playerCount = this.partitioner.playerPositions.length;
             const numberOfFocuses = this.partitioner.numberOfFocuses;
             const maxForwards = playerCount * (numberOfFocuses - 1);
-            const perc = 100 * this.partitioner.totalNumberOfForwards / maxForwards;
-            this.numberOfForwardsElement.innerText = this.partitioner.totalNumberOfForwards.toString() +
+
+            const snapshot = this.partitioner.bestSnapshot;
+
+            const perc = 100 * snapshot.numberOfForwards / maxForwards;
+            this.numberOfForwardsElement.innerText = snapshot.numberOfForwards.toString() +
                 ` (${perc.toFixed(1)}%)`;
-            for (let i = 0; i < this.partitioner.numberOfFocuses; i++) {
-                this.loadFactorElements[i].innerText = this.partitioner.loadFactorByFocusIndex[i].toFixed(1) + "%";
+            for (let i = 0; i < snapshot.numberOfFocuses; i++) {
+                this.loadFactorElements[i].innerText = snapshot.getFocusLoadFactor(i).toFixed(1) + "%";
             }
         }
     }

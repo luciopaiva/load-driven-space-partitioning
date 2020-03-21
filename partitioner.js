@@ -1,7 +1,7 @@
 
-import GrahamScan from "./node_modules/@lucio/graham-scan/graham-scan.mjs";
 import GridSpatialIndex from "./grid-spatial-index.js";
 import BoundingBox from "./bounding-box.js";
+import Snapshot from "./snapshot.js";
 import {euclideanDistanceSquared} from "./utils.js";
 
 /**
@@ -28,35 +28,29 @@ export default class Partitioner {
     /** @type {Number} */
     numberOfRuns = 0;
     /** @type {Number} */
+    numberOfFailures = 0;
+    /** @type {Number} */
     totalElapsedTime = 0;
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
     /** @type {Map<Number, Number[]>} */
     neighborsByPlayerIndex = new Map();
-    /** @type {[Number, Number][]} */
-    focuses = [];
-    /** @type {GrahamScan[]} */
-    innerHullVerticesByFocusIndex = [];
-    /** @type {GrahamScan[]} */
-    outerHullVerticesByFocusIndex = [];
     /** @type {BoundingBox} */
     boundingBox;
 
-    /** @type {Number[]} */
-    loadFactorByFocusIndex = [];
-    /** @type {Number} */
-    totalNumberOfForwards = 0;
-    /** @type {Number} */
-    bestTotalNumberOfForwards = Number.POSITIVE_INFINITY;
-
-    numberOfFailures = 0;
+    /** @type {Snapshot} */
+    currentSnapshot;
+    /** @type {Snapshot} */
+    bestSnapshot = new Snapshot();
 
     /** @type {GridSpatialIndex} */
     spatialIndex;
 
     constructor (numberOfFocuses) {
         this.numberOfFocuses = numberOfFocuses;
+        // initial best is the worst possible
+        this.bestSnapshot.numberOfForwards = Number.POSITIVE_INFINITY;
     }
 
     resetPlayerPositions() {
@@ -73,18 +67,6 @@ export default class Partitioner {
         return this.boundingBox;
     }
 
-    getFocuses() {
-        return this.focuses;
-    }
-
-    obtainInnerHulls() {
-        return this.innerHullVerticesByFocusIndex.map(vertices => vertices.getHull());
-    }
-
-    obtainOuterHulls() {
-        return this.outerHullVerticesByFocusIndex.map(vertices => vertices.getHull());
-    }
-
     getNumberOfPlayers() {
         return this.playerPositions.length;
     }
@@ -96,10 +78,11 @@ export default class Partitioner {
     randomizeFocuses() {
         const start = performance.now();
 
-        this.focuses = [];
+        this.initializeSnapshot();
+
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
             const focus = this.placeFocus();
-            this.focuses.push(focus);
+            this.currentSnapshot.focuses.push(focus);
         }
 
         const successfulAttempt = this.assignPlayersToFocuses();
@@ -108,6 +91,10 @@ export default class Partitioner {
         this.numberOfRuns++;
 
         return successfulAttempt;
+    }
+
+    initializeSnapshot() {
+        this.currentSnapshot = new Snapshot(this.numberOfFocuses);
     }
 
     placeFocus() {
@@ -121,29 +108,15 @@ export default class Partitioner {
     }
 
     assignPlayersToFocuses() {
-        this.innerHullVerticesByFocusIndex = [];
-        this.outerHullVerticesByFocusIndex = [];
-        const ownPlayersByFocusIndex = /** @type {Set<Number>[]} */ [];
-        const interestSetByFocusIndex = /** @type {Set<Number>[]} */ [];
-
-        this.totalNumberOfForwards = 0;
-
-        // initialize
-        for (let i = 0; i < this.numberOfFocuses; i++) {
-            this.innerHullVerticesByFocusIndex.push(new GrahamScan());
-            this.outerHullVerticesByFocusIndex.push(new GrahamScan());
-            ownPlayersByFocusIndex.push(new Set());
-            interestSetByFocusIndex.push(new Set());
-            this.loadFactorByFocusIndex[i] = 0;
-        }
+        const snapshot = this.currentSnapshot;
 
         // assign players to focuses
         for (let i = 0; i < this.playerPositions.length; i++) {
             const position = this.playerPositions[i];
             let closestFocusIndex = -1;
             let closestFocusDistanceSquared = Number.POSITIVE_INFINITY;
-            for (let fi = 0; fi < this.focuses.length; fi++) {
-                const focus = this.focuses[fi];
+            for (let fi = 0; fi < snapshot.focuses.length; fi++) {
+                const focus = snapshot.focuses[fi];
                 const distanceSquared = euclideanDistanceSquared(...position, ...focus);
                 if (distanceSquared < closestFocusDistanceSquared) {
                     closestFocusIndex = fi;
@@ -151,56 +124,49 @@ export default class Partitioner {
                 }
             }
 
-            // update inner hull
-            this.innerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
-            // the outer hull also needs to contain own clients
-            this.outerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
-
-            ownPlayersByFocusIndex[closestFocusIndex].add(i);
+            snapshot.addPlayerToFocus(i, position, closestFocusIndex);
         }
 
         // compute external interest sets
         for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
-            const ownPlayers = ownPlayersByFocusIndex[focusIndex];
-            const externalInterestSet = interestSetByFocusIndex[focusIndex];
+            const ownPlayers = snapshot.getOwnPlayersByFocusIndex(focusIndex);
 
             for (const playerIndex of ownPlayers.values()) {
                 for (const neighborIndex of this.neighborsByPlayerIndex.get(playerIndex)) {
                     if (!ownPlayers.has(neighborIndex)) {
-                        externalInterestSet.add(neighborIndex);
+                        const neighborPosition = this.playerPositions[neighborIndex];
+                        snapshot.addExternalPlayerToFocus(neighborIndex, neighborPosition, focusIndex);
                     }
                 }
             }
 
+            // compute load factor
+            const externalInterestSet = snapshot.getExternalInterestSetByFocusIndex(focusIndex);
             const totalTimeInMicros = PLAYER_STATE_SEND_FREQ_IN_HZ * (
                 ownPlayers.size * PROC_TIME_MINE_IN_MICROS +
                 externalInterestSet.size * PROC_TIME_OTHER_IN_MICROS
             );
+
             const loadFactor = 100 * (totalTimeInMicros / 1_000_000);  // between 0 and 100%
+
             if (loadFactor > MAX_COMFORTABLE_LOAD_FACTOR) {
+                snapshot.isWithinComfortableLFThreshold = false;
                 this.numberOfFailures++;
                 return false;
             }
-            this.loadFactorByFocusIndex[focusIndex] = loadFactor;
-            this.totalNumberOfForwards += externalInterestSet.size;
+
+            snapshot.setFocusLoadFactor(focusIndex, loadFactor);
+            snapshot.incrementNumberOfForwards(externalInterestSet.size);
         }
 
-        if (this.totalNumberOfForwards >= this.bestTotalNumberOfForwards) {
-            // was not able to improve over best so far
-            return false;
-        }
-        this.bestTotalNumberOfForwards = this.totalNumberOfForwards;
+        snapshot.isWithinComfortableLFThreshold = true;
 
-        // compose outer hulls based on consolidated interest sets
-        for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
-            const playerIndexes = interestSetByFocusIndex[focusIndex];
-            for (const playerIndex of playerIndexes) {
-                const playerPosition = this.playerPositions[playerIndex];
-                this.outerHullVerticesByFocusIndex[focusIndex].addPoint(playerPosition);
-            }
+        if (snapshot.numberOfForwards < this.bestSnapshot.numberOfForwards) {
+            this.bestSnapshot = snapshot;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     processPlayerPositions() {
