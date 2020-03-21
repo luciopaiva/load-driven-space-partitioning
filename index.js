@@ -23,7 +23,7 @@ class App {
 
     isRunning = true;
 
-    partitioner = new Partitioner(3);
+    partitioner = new Partitioner(2);
 
     playerColor = readCssVar("player-color");
 
@@ -226,7 +226,12 @@ class App {
             (this.partitioner.numberOfRuns - this.partitioner.numberOfFailures).toString();
 
         if (shouldUpdatePartitioningMetrics) {
-            this.numberOfForwardsElement.innerText = this.partitioner.totalNumberOfForwards.toString();
+            const playerCount = this.partitioner.playerPositions.length;
+            const numberOfFocuses = this.partitioner.numberOfFocuses;
+            const maxForwards = playerCount * (numberOfFocuses - 1);
+            const perc = 100 * this.partitioner.totalNumberOfForwards / maxForwards;
+            this.numberOfForwardsElement.innerText = this.partitioner.totalNumberOfForwards.toString() +
+                ` (${perc.toFixed(1)}%)`;
             for (let i = 0; i < this.partitioner.numberOfFocuses; i++) {
                 this.loadFactorElements[i].innerText = this.partitioner.loadFactorByFocusIndex[i].toFixed(1) + "%";
             }
