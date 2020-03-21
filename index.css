@@ -26,7 +26,7 @@ body {
     left: var(--margin);
     top: var(--margin);
     width: 250px;
-    height: 400px;
+    height: 215px;
     border: 1px solid gray;
 }
 

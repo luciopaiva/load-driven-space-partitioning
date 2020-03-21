@@ -6,3 +6,8 @@
   - fwds/sec
   - fwds/sec without partitioning
   - runs/sec
+- controls
+  - select number of partitions
+  - select strategy (bounding box vs player positions)
+  - max comfortable threshold
+  - edit focus positions
