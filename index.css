@@ -21,25 +21,17 @@ body {
     font-family: monospace;
 }
 
-#console {
+#metrics {
     position: absolute;
     left: var(--margin);
     top: var(--margin);
-    width: var(--console-width);
+    width: 250px;
     height: 400px;
-    padding: var(--padding);
     border: 1px solid gray;
-    z-index: 10;
-    white-space: pre;
-    overflow: auto;
 }
 
-#metrics {
-    position: absolute;
-    left: calc(var(--margin) + var(--console-width) + 2 * var(--padding) + var(--margin));
-    top: var(--margin);
-    width: 200px;
-    height: 400px;
+#metrics table {
+    width: 100%;
 }
 
 canvas {

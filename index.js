@@ -23,9 +23,6 @@ class App {
 
     automaticMode = false;
 
-    /** @type {HTMLElement} */
-    console = document.getElementById("console");
-
     partitioner = new Partitioner(4);
 
     playerColor = readCssVar("player-color");
@@ -74,8 +71,6 @@ class App {
      * @return {void}
      */
     async initialize() {
-        this.clearLog();
-
         await this.fetchAndProcessPlayersPositions();
 
         this.resize();
@@ -101,23 +96,23 @@ class App {
 
             const boundingBox = this.partitioner.getBoundingBox();
 
-            this.log(`Players loaded: ${this.partitioner.getNumberOfPlayers()}`);
-            this.log(`Box top: ${boundingBox.top}`);
-            this.log(`Box right: ${boundingBox.right}`);
-            this.log(`Box bottom: ${boundingBox.bottom}`);
-            this.log(`Box left: ${boundingBox.left}`);
-            this.log("Normalizing...");
+            console.log(`Players loaded: ${this.partitioner.getNumberOfPlayers()}`);
+            console.log(`Box top: ${boundingBox.top}`);
+            console.log(`Box right: ${boundingBox.right}`);
+            console.log(`Box bottom: ${boundingBox.bottom}`);
+            console.log(`Box left: ${boundingBox.left}`);
+            console.log("Normalizing...");
 
             const processTimeStart = performance.now();
             this.partitioner.processPlayerPositions();
             const processElapsed = performance.now() - processTimeStart;
 
-            this.log(`Box top: ${boundingBox.top}`);
-            this.log(`Box right: ${boundingBox.right}`);
-            this.log(`Box bottom: ${boundingBox.bottom}`);
-            this.log(`Box left: ${boundingBox.left}`);
-            this.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
-            this.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
+            console.log(`Box top: ${boundingBox.top}`);
+            console.log(`Box right: ${boundingBox.right}`);
+            console.log(`Box bottom: ${boundingBox.bottom}`);
+            console.log(`Box left: ${boundingBox.left}`);
+            console.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
+            console.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
         }
     }
 
@@ -240,14 +235,6 @@ class App {
                 this.loadFactorElements[i].innerText = this.partitioner.loadFactorByFocusIndex[i].toFixed(1) + "%";
             }
         }
-    }
-
-    clearLog() {
-        this.console.innerText = "";
-    }
-
-    log(msg) {
-        this.console.innerText += msg + "\n";
     }
 }
 
