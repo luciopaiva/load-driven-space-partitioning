@@ -85,7 +85,9 @@ export default class Partitioner {
             this.currentSnapshot.focuses.push(focus);
         }
 
-        const successfulAttempt = this.assignPlayersToFocuses();
+        this.assignPlayersToFocuses();
+        this.computeExternalInterestSets();
+        const successfulAttempt = this.computeLoadFactors();
 
         this.totalElapsedTime += performance.now() - start;
         this.numberOfRuns++;
@@ -126,6 +128,10 @@ export default class Partitioner {
 
             snapshot.addPlayerToFocus(i, position, closestFocusIndex);
         }
+    }
+
+    computeExternalInterestSets() {
+        const snapshot = this.currentSnapshot;
 
         // compute external interest sets
         for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
@@ -139,9 +145,18 @@ export default class Partitioner {
                     }
                 }
             }
+        }
+    }
+
+    computeLoadFactors() {
+        const snapshot = this.currentSnapshot;
+
+        // compute external interest sets
+        for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
+            const ownPlayers = snapshot.getOwnPlayersByFocusIndex(focusIndex);
+            const externalInterestSet = snapshot.getExternalInterestSetByFocusIndex(focusIndex);
 
             // compute load factor
-            const externalInterestSet = snapshot.getExternalInterestSetByFocusIndex(focusIndex);
             const totalTimeInMicros = PLAYER_STATE_SEND_FREQ_IN_HZ * (
                 ownPlayers.size * PROC_TIME_MINE_IN_MICROS +
                 externalInterestSet.size * PROC_TIME_OTHER_IN_MICROS
