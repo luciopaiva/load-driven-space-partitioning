@@ -21,7 +21,7 @@ class App {
     margin = 50;
     playerRadius = 1;
 
-    automaticMode = false;
+    isRunning = true;
 
     partitioner = new Partitioner(4);
 
@@ -57,14 +57,12 @@ class App {
         this.loadFactorElements.push(document.getElementById("lf-3"));
         this.loadFactorElements.push(document.getElementById("lf-4"));
 
-        this.initialize();
-
         window.addEventListener("resize", this.onResize.bind(this));
+        document.body.addEventListener("keypress", this.onKeypress.bind(this));
 
         this.updateFn = this.update.bind(this);
-        requestAnimationFrame(this.updateFn);
 
-        document.body.addEventListener("keypress", this.onKeypress.bind(this));
+        this.initialize();
     }
 
     /**
@@ -76,7 +74,7 @@ class App {
         this.resize();
         this.drawPlayers();
 
-        this.randomizeFocuses();
+        requestAnimationFrame(this.updateFn);
     }
 
     async fetchAndProcessPlayersPositions() {
@@ -118,9 +116,7 @@ class App {
 
     onKeypress(event) {
         if (event.key === " ") {
-            this.randomizeFocuses();
-        } else if (event.key === "r") {
-            this.automaticMode = !this.automaticMode;
+            this.isRunning = !this.isRunning;
         }
     }
 
@@ -207,7 +203,7 @@ class App {
     }
 
     update() {
-        if (this.automaticMode) {
+        if (this.isRunning) {
             this.randomizeFocuses();
         }
         requestAnimationFrame(this.updateFn);
