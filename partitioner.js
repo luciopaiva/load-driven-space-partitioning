@@ -17,6 +17,9 @@ const PROC_TIME_MINE_IN_MICROS = 20;
 const PROC_TIME_OTHER_IN_MICROS = 1;
 const MAX_COMFORTABLE_LOAD_FACTOR = 50;
 const PLAYER_STATE_SEND_FREQ_IN_HZ = 5;
+const FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS = 1;
+const FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX = 2;
+const FOCUS_PLACEMENT_STRATEGY = FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX;
 
 export default class Partitioner {
 
@@ -95,7 +98,7 @@ export default class Partitioner {
 
         this.focuses = [];
         for (let fi = 0; fi < this.numberOfFocuses; fi++) {
-            const focus = this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)];
+            const focus = this.placeFocus();
             this.focuses.push(focus);
         }
 
@@ -105,6 +108,16 @@ export default class Partitioner {
         this.numberOfRuns++;
 
         return successfulAttempt;
+    }
+
+    placeFocus() {
+        if (FOCUS_PLACEMENT_STRATEGY === FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS) {
+            return this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)]
+        } else {
+            const x = Math.random() * this.boundingBox.width;
+            const y = Math.random() * this.boundingBox.height;
+            return [x, y];
+        }
     }
 
     assignPlayersToFocuses() {

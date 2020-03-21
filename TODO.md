@@ -11,3 +11,4 @@
   - select strategy (bounding box vs player positions)
   - max comfortable threshold
   - edit focus positions
+    - show if attempt was successful or not, but always show
