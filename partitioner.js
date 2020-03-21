@@ -34,8 +34,8 @@ export default class Partitioner {
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
-    /** @type {Map<Number, Number[]>} */
-    neighborsByPlayerIndex = new Map();
+    /** @type {Array<Number[]>} */
+    neighborsByPlayerIndex = [];
     /** @type {BoundingBox} */
     boundingBox;
 
@@ -138,7 +138,8 @@ export default class Partitioner {
             const ownPlayers = snapshot.getOwnPlayersByFocusIndex(focusIndex);
 
             for (const playerIndex of ownPlayers.values()) {
-                for (const neighborIndex of this.neighborsByPlayerIndex.get(playerIndex)) {
+                const neighbors = this.neighborsByPlayerIndex[playerIndex];
+                for (const neighborIndex of neighbors) {
                     if (!ownPlayers.has(neighborIndex)) {
                         const neighborPosition = this.playerPositions[neighborIndex];
                         snapshot.addExternalPlayerToFocus(neighborIndex, neighborPosition, focusIndex);
@@ -202,10 +203,11 @@ export default class Partitioner {
             this.spatialIndex.insert(i, ...position);
         }
 
+        this.neighborsByPlayerIndex = [];
         for (let i = 0; i < this.playerPositions.length; i++) {
             const position = this.playerPositions[i];
-            const neighbors = this.spatialIndex.queryByCount(position[X], position[Y], NEIGHBOR_COUNT);
-            this.neighborsByPlayerIndex.set(i, /** @type {Number[]} */ neighbors);
+            this.neighborsByPlayerIndex.push(
+                /** @type {Number[]} */ this.spatialIndex.queryByCount(position[X], position[Y], NEIGHBOR_COUNT));
         }
     }
 }
