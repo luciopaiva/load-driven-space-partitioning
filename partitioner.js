@@ -15,7 +15,7 @@ const Y = 1;
 const NEIGHBOR_COUNT = 100;
 const PROC_TIME_MINE_IN_MICROS = 20;
 const PROC_TIME_OTHER_IN_MICROS = 1;
-const MAX_COMFORTABLE_LOAD_FACTOR = 60;
+const MAX_COMFORTABLE_LOAD_FACTOR = 50;
 const PLAYER_STATE_SEND_FREQ_IN_HZ = 5;
 
 export default class Partitioner {
