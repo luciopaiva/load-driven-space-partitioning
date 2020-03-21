@@ -1,4 +1,9 @@
 
+- must save best snapshots, otherwise resizing will overwrite best one
+- after having snapshots, keep the best 100 and show them on the UI
+- % reported for fwds looks too low (review code)
+- allow for more server nodes
+
 - focus placement strategy:
   - player positions
   - bounding box

@@ -1,7 +1,14 @@
 
+if (process.argv.length < 3) {
+    console.error("Missing filename");
+    process.exit(1);
+}
+
+
 const fs = require("fs");
 
-const tsv = fs.readFileSync("photo-finish-snapshot-20200204-1822.tsv", "utf-8");
+const fileName = process.argv[2];
+const tsv = fs.readFileSync(fileName, "utf-8");
 const lines = tsv.split("\n").slice(1);
 const output = [];
 for (const line of lines) {

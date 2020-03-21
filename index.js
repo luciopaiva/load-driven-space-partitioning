@@ -23,7 +23,7 @@ class App {
 
     isRunning = true;
 
-    partitioner = new Partitioner(2);
+    partitioner = new Partitioner(4);
 
     playerColor = readCssVar("player-color");
 
