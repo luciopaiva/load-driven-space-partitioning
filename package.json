@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/luciopaiva/load-driven-space-partitioning#readme",
   "dependencies": {
-    "@lucio/graham-scan": "^1.0.0"
+    "@lucio/graham-scan": "^1.0.0",
+    "dat.gui": "^0.7.6"
   }
 }

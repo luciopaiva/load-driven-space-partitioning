@@ -18,6 +18,10 @@ function readCssVar(varName) {
     return window.getComputedStyle(document.documentElement).getPropertyValue(varName);
 }
 
+function readCssVarAsNumber(varName) {
+    return parseInt(readCssVar(varName));
+}
+
 function readCssVarAsHexNumber(varName) {
     const strValue = readCssVar(varName);
     return strValue ? parseInt(strValue.replace(/[^a-fA-F0-9]/g, ""), 16) : null;
@@ -50,6 +54,7 @@ export {
     isBigEndian,
     rgbToVal,
     readCssVar,
+    readCssVarAsNumber,
     readCssVarAsHexNumber,
     cssColorToColor,
     euclideanDistanceSquared,

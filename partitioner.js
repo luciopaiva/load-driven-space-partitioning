@@ -19,9 +19,10 @@ const MAX_COMFORTABLE_LOAD_FACTOR = 50;
 const PLAYER_STATE_SEND_FREQ_IN_HZ = 5;
 const FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS = 1;
 const FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX = 2;
-const FOCUS_PLACEMENT_STRATEGY = FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX;
 
 export default class Partitioner {
+
+    focusPlacementStrategy = FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX;
 
     /** @type {Number} */
     numberOfFocuses = 1;
@@ -48,7 +49,28 @@ export default class Partitioner {
     spatialIndex;
 
     constructor (numberOfFocuses) {
+        this.changeNumberOfFocuses(numberOfFocuses);
+    }
+
+    changeNumberOfFocuses(numberOfFocuses) {
         this.numberOfFocuses = numberOfFocuses;
+        this.reset();
+    }
+
+    setPlacementStrategyBoundingBox() {
+        this.focusPlacementStrategy = FOCUS_PLACEMENT_STRATEGY_BOUNDING_BOX;
+        this.reset();
+    }
+
+    setPlacementStrategyPlayerPositions() {
+        this.focusPlacementStrategy = FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS;
+        this.reset();
+    }
+
+    reset() {
+        this.numberOfRuns = 0;
+        this.numberOfFailures = 0;
+        this.totalElapsedTime = 0;
         // initial best is the worst possible
         this.bestSnapshot.numberOfForwards = Number.POSITIVE_INFINITY;
     }
@@ -107,7 +129,7 @@ export default class Partitioner {
     }
 
     placeFocus() {
-        if (FOCUS_PLACEMENT_STRATEGY === FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS) {
+        if (this.focusPlacementStrategy === FOCUS_PLACEMENT_STRATEGY_PLAYER_POSITIONS) {
             return this.playerPositions[Math.floor(Math.random() * this.playerPositions.length)]
         } else {
             const x = Math.random() * this.boundingBox.width;

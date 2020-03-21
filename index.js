@@ -1,8 +1,17 @@
 
-import {readCssVar} from "./utils.js";
+import * as dat from "./node_modules/dat.gui/build/dat.gui.module.js";
+import {readCssVar, readCssVarAsNumber} from "./utils.js";
 import Partitioner from "./partitioner.js";
 
 const TAU = Math.PI * 2;
+const STRATEGY_BOUNDING_BOX = "bounding box";
+const STRATEGY_PLAYER_POSITIONS = "player positions";
+
+class Controls {
+    numberOfFocuses = 4;
+    strategy = STRATEGY_BOUNDING_BOX;
+    isRunning = true;
+}
 
 class App {
 
@@ -21,9 +30,12 @@ class App {
     margin = 50;
     playerRadius = 1;
 
-    isRunning = true;
-
-    partitioner = new Partitioner(4);
+    initialNumberOfFocuses = 4;
+    partitioner = new Partitioner(this.initialNumberOfFocuses);
+    scenarioFile;
+    newNumberOfFocuses = 0;
+    /** @type {Function} */
+    newStrategy = null;
 
     playerColor = readCssVar("player-color");
 
@@ -34,6 +46,11 @@ class App {
         readCssVar("focus-color-4"),
     ];
     focusRadius = 5;
+
+    gui = new dat.GUI({ autoPlace: false });
+    controls = new Controls();
+    leftColumnWidth = readCssVarAsNumber("left-column-width");
+    leftColumnWidthWithMargins = this.leftColumnWidth + 2 * readCssVarAsNumber("margin");
 
     constructor () {
         this.playersCanvas = document.createElement("canvas");
@@ -58,7 +75,25 @@ class App {
         this.loadFactorElements.push(document.getElementById("lf-4"));
 
         window.addEventListener("resize", this.onResize.bind(this));
-        document.body.addEventListener("keypress", this.onKeypress.bind(this));
+
+        this.gui.width = this.leftColumnWidth;
+        const numberOfFocusesControl = this.gui.add(this.controls, "numberOfFocuses", 1, 4, 1);
+        numberOfFocusesControl.onFinishChange(value => {
+            if (value !== this.partitioner.numberOfFocuses) {
+                this.newNumberOfFocuses = value;
+            }
+        });
+        const strategyControl = this.gui.add(this.controls, "strategy",
+            [STRATEGY_BOUNDING_BOX, STRATEGY_PLAYER_POSITIONS]);
+        strategyControl.onFinishChange(value => {
+            if (value === STRATEGY_PLAYER_POSITIONS) {
+                this.newStrategy = this.partitioner.setPlacementStrategyPlayerPositions.bind(this.partitioner);
+            } else if (value === STRATEGY_BOUNDING_BOX) {
+                this.newStrategy = this.partitioner.setPlacementStrategyBoundingBox.bind(this.partitioner);
+            }
+        });
+        this.gui.add(this.controls, "isRunning");
+        document.getElementById("gui").appendChild(/** @type {Node} */ this.gui.domElement);
 
         this.updateFn = this.update.bind(this);
 
@@ -69,7 +104,8 @@ class App {
      * @return {void}
      */
     async initialize() {
-        await this.fetchAndProcessPlayersPositions();
+        await this.fetchPlayerPositions();
+        this.processPlayerPositions();
 
         this.resize();
         this.drawPlayers();
@@ -77,47 +113,42 @@ class App {
         requestAnimationFrame(this.updateFn);
     }
 
-    async fetchAndProcessPlayersPositions() {
+    async fetchPlayerPositions() {
         const response = await fetch("./scenario.tsv");
-        if (response.ok) {
-            const text = await response.text();
-            const lines = text.split("\n");
-            const mapToFloat = parseFloat.bind(window);
-
-            this.partitioner.resetPlayerPositions();
-
-            for (const line of lines) {
-                const rawCoordinates = line.split("\t");
-                const coordinates = rawCoordinates.map(mapToFloat);
-                this.partitioner.addPlayerPosition(coordinates);
-            }
-
-            const boundingBox = this.partitioner.getBoundingBox();
-
-            console.log(`Players loaded: ${this.partitioner.getNumberOfPlayers()}`);
-            console.log(`Box top: ${boundingBox.top}`);
-            console.log(`Box right: ${boundingBox.right}`);
-            console.log(`Box bottom: ${boundingBox.bottom}`);
-            console.log(`Box left: ${boundingBox.left}`);
-            console.log("Normalizing...");
-
-            const processTimeStart = performance.now();
-            this.partitioner.processPlayerPositions();
-            const processElapsed = performance.now() - processTimeStart;
-
-            console.log(`Box top: ${boundingBox.top}`);
-            console.log(`Box right: ${boundingBox.right}`);
-            console.log(`Box bottom: ${boundingBox.bottom}`);
-            console.log(`Box left: ${boundingBox.left}`);
-            console.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
-            console.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
-        }
+        this.scenarioFile = response.ok ? await response.text() : null;
     }
 
-    onKeypress(event) {
-        if (event.key === " ") {
-            this.isRunning = !this.isRunning;
+    processPlayerPositions() {
+        const lines = this.scenarioFile.split("\n");
+        const mapToFloat = parseFloat.bind(window);
+
+        this.partitioner.resetPlayerPositions();
+
+        for (const line of lines) {
+            const rawCoordinates = line.split("\t");
+            const coordinates = rawCoordinates.map(mapToFloat);
+            this.partitioner.addPlayerPosition(coordinates);
         }
+
+        const boundingBox = this.partitioner.getBoundingBox();
+
+        console.log(`Players loaded: ${this.partitioner.getNumberOfPlayers()}`);
+        console.log(`Box top: ${boundingBox.top}`);
+        console.log(`Box right: ${boundingBox.right}`);
+        console.log(`Box bottom: ${boundingBox.bottom}`);
+        console.log(`Box left: ${boundingBox.left}`);
+        console.log("Normalizing...");
+
+        const processTimeStart = performance.now();
+        this.partitioner.processPlayerPositions();
+        const processElapsed = performance.now() - processTimeStart;
+
+        console.log(`Box top: ${boundingBox.top}`);
+        console.log(`Box right: ${boundingBox.right}`);
+        console.log(`Box bottom: ${boundingBox.bottom}`);
+        console.log(`Box left: ${boundingBox.left}`);
+        console.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
+        console.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
     }
 
     onResize() {
@@ -127,7 +158,7 @@ class App {
     }
 
     resize() {
-        this.width = window.innerWidth;
+        this.width = window.innerWidth - this.leftColumnWidthWithMargins;
         this.height = window.innerHeight;
         this.netCanvasWidth = this.width - 2 * this.margin;
         this.netCanvasHeight = this.height - 2 * this.margin;
@@ -205,7 +236,20 @@ class App {
     }
 
     update() {
-        if (this.isRunning) {
+        if (this.controls.isRunning) {
+
+            if (this.newNumberOfFocuses !== 0) {
+                this.focusesCtx.clearRect(0, 0, this.width, this.height);
+                this.partitioner.changeNumberOfFocuses(this.newNumberOfFocuses);
+                this.newNumberOfFocuses = 0;
+            }
+
+            if (this.newStrategy !== null) {
+                this.focusesCtx.clearRect(0, 0, this.width, this.height);
+                this.newStrategy.call();
+                this.newStrategy = null;
+            }
+
             this.randomizeFocuses();
         }
         requestAnimationFrame(this.updateFn);
