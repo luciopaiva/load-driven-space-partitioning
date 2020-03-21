@@ -13,6 +13,10 @@ const SPATIAL_INDEX_CELL_EXPONENT = 13;  // cell side of approx. 82 meters (8192
 const X = 0;
 const Y = 1;
 const NEIGHBOR_COUNT = 100;
+const PROC_TIME_MINE_IN_MICROS = 20;
+const PROC_TIME_OTHER_IN_MICROS = 1;
+const MAX_COMFORTABLE_LOAD_FACTOR = 60;
+const PLAYER_STATE_SEND_FREQ_IN_HZ = 5;
 
 export default class Partitioner {
 
@@ -35,6 +39,15 @@ export default class Partitioner {
     outerHullVerticesByFocusIndex = [];
     /** @type {BoundingBox} */
     boundingBox;
+
+    /** @type {Number[]} */
+    loadFactorByFocusIndex = [];
+    /** @type {Number} */
+    totalNumberOfForwards = 0;
+    /** @type {Number} */
+    bestTotalNumberOfForwards = Number.POSITIVE_INFINITY;
+
+    numberOfFailures = 0;
 
     /** @type {GridSpatialIndex} */
     spatialIndex;
@@ -86,22 +99,29 @@ export default class Partitioner {
             this.focuses.push(focus);
         }
 
-        this.assignPlayersToFocuses();
+        const successfulAttempt = this.assignPlayersToFocuses();
 
         this.totalElapsedTime += performance.now() - start;
         this.numberOfRuns++;
+
+        return successfulAttempt;
     }
 
     assignPlayersToFocuses() {
         this.innerHullVerticesByFocusIndex = [];
         this.outerHullVerticesByFocusIndex = [];
+        const ownPlayersByFocusIndex = /** @type {Set<Number>[]} */ [];
         const interestSetByFocusIndex = /** @type {Set<Number>[]} */ [];
+
+        this.totalNumberOfForwards = 0;
 
         // initialize
         for (let i = 0; i < this.numberOfFocuses; i++) {
             this.innerHullVerticesByFocusIndex.push(new GrahamScan());
             this.outerHullVerticesByFocusIndex.push(new GrahamScan());
+            ownPlayersByFocusIndex.push(new Set());
             interestSetByFocusIndex.push(new Set());
+            this.loadFactorByFocusIndex[i] = 0;
         }
 
         // assign players to focuses
@@ -120,14 +140,45 @@ export default class Partitioner {
 
             // update inner hull
             this.innerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
+            // the outer hull also needs to contain own clients
+            this.outerHullVerticesByFocusIndex[closestFocusIndex].addPoint(position);
 
-            // update interest set of focus based on assigned player's neighborhood
-            for (const neighborIndex of this.neighborsByPlayerIndex.get(i)) {
-                interestSetByFocusIndex[closestFocusIndex].add(neighborIndex);
-            }
+            ownPlayersByFocusIndex[closestFocusIndex].add(i);
         }
 
-        // compose outer hull based on consolidated interest set
+        // compute external interest sets
+        for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
+            const ownPlayers = ownPlayersByFocusIndex[focusIndex];
+            const externalInterestSet = interestSetByFocusIndex[focusIndex];
+
+            for (const playerIndex of ownPlayers.values()) {
+                for (const neighborIndex of this.neighborsByPlayerIndex.get(playerIndex)) {
+                    if (!ownPlayers.has(neighborIndex)) {
+                        externalInterestSet.add(neighborIndex);
+                    }
+                }
+            }
+
+            const totalTimeInMicros = PLAYER_STATE_SEND_FREQ_IN_HZ * (
+                ownPlayers.size * PROC_TIME_MINE_IN_MICROS +
+                externalInterestSet.size * PROC_TIME_OTHER_IN_MICROS
+            );
+            const loadFactor = 100 * (totalTimeInMicros / 1_000_000);  // between 0 and 100%
+            if (loadFactor > MAX_COMFORTABLE_LOAD_FACTOR) {
+                this.numberOfFailures++;
+                return false;
+            }
+            this.loadFactorByFocusIndex[focusIndex] = loadFactor;
+            this.totalNumberOfForwards += externalInterestSet.size;
+        }
+
+        if (this.totalNumberOfForwards >= this.bestTotalNumberOfForwards) {
+            // was not able to improve over best so far
+            return false;
+        }
+        this.bestTotalNumberOfForwards = this.totalNumberOfForwards;
+
+        // compose outer hulls based on consolidated interest sets
         for (let focusIndex = 0; focusIndex < this.numberOfFocuses; focusIndex++) {
             const playerIndexes = interestSetByFocusIndex[focusIndex];
             for (const playerIndex of playerIndexes) {
@@ -135,6 +186,8 @@ export default class Partitioner {
                 this.outerHullVerticesByFocusIndex[focusIndex].addPoint(playerPosition);
             }
         }
+
+        return true;
     }
 
     processPlayerPositions() {

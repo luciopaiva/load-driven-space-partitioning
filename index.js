@@ -51,6 +51,14 @@ class App {
 
         this.runsElement = document.getElementById("number-of-runs");
         this.avgRunningTimeElement = document.getElementById("avg-running-time");
+        this.numberOfForwardsElement = document.getElementById("number-of-forwards");
+        this.numberOfFailuresElement = document.getElementById("number-of-failures");
+        this.numberOfSuccessesElement = document.getElementById("number-of-successes");
+        this.loadFactorElements = [];
+        this.loadFactorElements.push(document.getElementById("lf-1"));
+        this.loadFactorElements.push(document.getElementById("lf-2"));
+        this.loadFactorElements.push(document.getElementById("lf-3"));
+        this.loadFactorElements.push(document.getElementById("lf-4"));
 
         this.initialize();
 
@@ -73,8 +81,7 @@ class App {
         this.resize();
         this.drawPlayers();
 
-        this.partitioner.randomizeFocuses();
-        this.drawHullsAndFocuses();
+        this.randomizeFocuses();
     }
 
     async fetchAndProcessPlayersPositions() {
@@ -116,8 +123,7 @@ class App {
 
     onKeypress(event) {
         if (event.key === " ") {
-            this.partitioner.randomizeFocuses();
-            this.drawHullsAndFocuses();
+            this.randomizeFocuses();
         } else if (event.key === "r") {
             this.automaticMode = !this.automaticMode;
         }
@@ -207,17 +213,33 @@ class App {
 
     update() {
         if (this.automaticMode) {
-            this.partitioner.randomizeFocuses();
-            this.drawHullsAndFocuses();
-            this.updateHUD();
+            this.randomizeFocuses();
         }
         requestAnimationFrame(this.updateFn);
     }
 
-    updateHUD() {
+    randomizeFocuses() {
+        const successfulAttempt = this.partitioner.randomizeFocuses();
+        if (successfulAttempt) {
+            this.drawHullsAndFocuses();
+        }
+        this.updateHUD(successfulAttempt);
+    }
+
+    updateHUD(shouldUpdatePartitioningMetrics) {
         this.runsElement.innerText = this.partitioner.numberOfRuns.toString();
         const avg = this.partitioner.totalElapsedTime / this.partitioner.numberOfRuns;
         this.avgRunningTimeElement.innerText = avg.toFixed(1) + " ms";
+        this.numberOfFailuresElement.innerText = this.partitioner.numberOfFailures.toString();
+        this.numberOfSuccessesElement.innerText =
+            (this.partitioner.numberOfRuns - this.partitioner.numberOfFailures).toString();
+
+        if (shouldUpdatePartitioningMetrics) {
+            this.numberOfForwardsElement.innerText = this.partitioner.totalNumberOfForwards.toString();
+            for (let i = 0; i < this.partitioner.numberOfFocuses; i++) {
+                this.loadFactorElements[i].innerText = this.partitioner.loadFactorByFocusIndex[i].toFixed(1) + "%";
+            }
+        }
     }
 
     clearLog() {
