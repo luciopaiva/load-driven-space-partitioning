@@ -34,7 +34,7 @@ export default class Partitioner {
 
     /** @type {[Number, Number][]} */
     playerPositions = [];
-    /** @type {Array<Number[]>} */
+    /** @type {Uint32Array[]} */
     neighborsByPlayerIndex = [];
     /** @type {BoundingBox} */
     boundingBox;
@@ -85,8 +85,15 @@ export default class Partitioner {
             this.currentSnapshot.focuses.push(focus);
         }
 
+        // n - number of players
+        // m - number of focuses
+        // k - number of neighbors
+
+        // O(n * m)
         this.assignPlayersToFocuses();
+        // O(n * k)
         this.computeExternalInterestSets();
+        // O(m)
         const successfulAttempt = this.computeLoadFactors();
 
         this.totalElapsedTime += performance.now() - start;
@@ -206,8 +213,13 @@ export default class Partitioner {
         this.neighborsByPlayerIndex = [];
         for (let i = 0; i < this.playerPositions.length; i++) {
             const position = this.playerPositions[i];
-            this.neighborsByPlayerIndex.push(
-                /** @type {Number[]} */ this.spatialIndex.queryByCount(position[X], position[Y], NEIGHBOR_COUNT));
+
+            const neighbors = /** @type {Number[]} */ this.spatialIndex.queryByCount(position[X], position[Y], NEIGHBOR_COUNT);
+            const neighborsBuffer = new Uint32Array(neighbors.length);
+            for (let j = 0; j < neighbors.length; j++) {
+                neighborsBuffer[j] = neighbors[j];
+            }
+            this.neighborsByPlayerIndex.push(neighborsBuffer);
         }
     }
 }
