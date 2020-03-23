@@ -7,6 +7,7 @@ const TAU = Math.PI * 2;
 const STRATEGY_BOUNDING_BOX = "bounding box";
 const STRATEGY_PLAYER_POSITIONS = "player positions";
 const MAX_COMFORTABLE_LOAD_FACTOR = 50;
+const MAX_FOCUSES = 10;
 
 class Controls {
     focuses = 4;
@@ -33,7 +34,7 @@ class App {
     playerRadius = 1;
 
     initialNumberOfFocuses = 4;
-    partitioner = new Partitioner(this.initialNumberOfFocuses);
+    partitioner = new Partitioner(this.initialNumberOfFocuses, MAX_COMFORTABLE_LOAD_FACTOR);
     scenarioFile;
     newNumberOfFocuses = 0;
     /** @type {Function} */
@@ -42,12 +43,7 @@ class App {
 
     playerColor = readCssVar("player-color");
 
-    focusColors = [
-        readCssVar("focus-color-1"),
-        readCssVar("focus-color-2"),
-        readCssVar("focus-color-3"),
-        readCssVar("focus-color-4"),
-    ];
+    focusColors = [];
     focusRadius = 5;
 
     gui = new dat.GUI({ autoPlace: false });
@@ -72,15 +68,19 @@ class App {
         this.numberOfFailuresElement = document.getElementById("number-of-failures");
         this.numberOfSuccessesElement = document.getElementById("number-of-successes");
         this.loadFactorElements = [];
-        this.loadFactorElements.push(document.getElementById("lf-1"));
-        this.loadFactorElements.push(document.getElementById("lf-2"));
-        this.loadFactorElements.push(document.getElementById("lf-3"));
-        this.loadFactorElements.push(document.getElementById("lf-4"));
+        for (let i = 1; i <= MAX_FOCUSES; i++) {
+            const label = document.getElementById(`lf-label-${i}`);
+            const element = document.getElementById(`lf-${i}`);
+            const color = readCssVar(`focus-color-${i}`);
+            label.style.color = color;
+            this.loadFactorElements.push(element);
+            this.focusColors.push(color);
+        }
 
         window.addEventListener("resize", this.onResize.bind(this));
 
         this.gui.width = this.leftColumnWidth;
-        const numberOfFocusesControl = this.gui.add(this.controls, "focuses", 1, 4, 1);
+        const numberOfFocusesControl = this.gui.add(this.controls, "focuses", 1, 10, 1);
         numberOfFocusesControl.onFinishChange(value => {
             if (value !== this.partitioner.numberOfFocuses) {
                 this.newNumberOfFocuses = value;
@@ -298,7 +298,11 @@ class App {
             this.numberOfForwardsElement.innerText = snapshot.numberOfForwards.toString() +
                 ` (${perc.toFixed(1)}%)`;
             for (let i = 0; i < snapshot.numberOfFocuses; i++) {
-                this.loadFactorElements[i].innerText = snapshot.getFocusLoadFactor(i).toFixed(1) + "%";
+                const loadFactor = snapshot.getFocusLoadFactor(i);
+                this.loadFactorElements[i].innerText = loadFactor === 0 ? "-" : loadFactor.toFixed(1) + "%";
+            }
+            for (let i = snapshot.numberOfFocuses; i < MAX_FOCUSES; i++) {
+                this.loadFactorElements[i].innerText = "-";
             }
         }
     }

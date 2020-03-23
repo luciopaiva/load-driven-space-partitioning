@@ -7,6 +7,12 @@
     --focus-color-2: #14bf02;
     --focus-color-3: #2a6fff;
     --focus-color-4: #ff00cc;
+    --focus-color-5: #00aeb1;
+    --focus-color-6: #f4ffff;
+    --focus-color-7: #a000d9;
+    --focus-color-8: #00ffff;
+    --focus-color-9: #bdbcc0;
+    --focus-color-10: #f9ff01;
     --margin: 10px;
     --padding: 10px;
     --console-width: 300px;
@@ -27,7 +33,7 @@ body {
     right: var(--margin);
     top: var(--margin);
     width: 250px;
-    height: 215px;
+    height: 325px;
     border: 1px solid gray;
 }
 
@@ -38,7 +44,7 @@ body {
 #gui {
     position: absolute;
     right: var(--margin);
-    top: calc(230px + 2 * var(--margin));
+    top: calc(325px + 2 * var(--margin));
 }
 
 canvas {
