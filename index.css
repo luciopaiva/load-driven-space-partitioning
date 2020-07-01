@@ -47,6 +47,13 @@ body {
     top: calc(325px + 2 * var(--margin));
 }
 
+#drop-message {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
 canvas {
     position: absolute;
     right: calc(var(--left-column-width) + 2 * var(--margin));

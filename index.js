@@ -12,7 +12,7 @@ const MAX_FOCUSES = 10;
 class Controls {
     focuses = 4;
     strategy = STRATEGY_BOUNDING_BOX;
-    isRunning = true;
+    isRunning = false;
     maxLoadFactor = MAX_COMFORTABLE_LOAD_FACTOR;
 }
 
@@ -35,7 +35,6 @@ class App {
 
     initialNumberOfFocuses = 4;
     partitioner = new Partitioner(this.initialNumberOfFocuses, MAX_COMFORTABLE_LOAD_FACTOR);
-    scenarioFile;
     newNumberOfFocuses = 0;
     /** @type {Function} */
     newStrategy = null;
@@ -105,30 +104,39 @@ class App {
         document.getElementById("gui").appendChild(/** @type {Node} */ this.gui.domElement);
 
         this.updateFn = this.update.bind(this);
+        requestAnimationFrame(this.updateFn);
 
-        this.initialize();
-    }
-
-    /**
-     * @return {void}
-     */
-    async initialize() {
-        await this.fetchPlayerPositions();
-        this.processPlayerPositions();
+        this.focusesCanvas.addEventListener("dragover", e => e.preventDefault());
+        this.focusesCanvas.addEventListener("drop", this.onDrop.bind(this));
 
         this.resize();
-        this.drawPlayers();
-
-        requestAnimationFrame(this.updateFn);
     }
 
-    async fetchPlayerPositions() {
-        const response = await fetch("./scenario.tsv");
-        this.scenarioFile = response.ok ? await response.text() : null;
+    onDrop(e) {
+        e.preventDefault();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            const reader = new FileReader();
+
+            const dropElement = document.getElementById("drop-message");
+            dropElement.innerText = "Loading...";
+
+            setTimeout(() => {
+                reader.addEventListener("load", event => {
+                    dropElement.remove();
+                    const file = event.target.result;
+                    this.processAndDrawPlayerPositions(file);
+                });
+
+                console.info("fired");
+                reader.readAsText(file);
+            }, 10);
+        }
+        return false;
     }
 
-    processPlayerPositions() {
-        const lines = this.scenarioFile.split("\n");
+    processAndDrawPlayerPositions(file) {
+        const lines = file.split("\n");
         const mapToFloat = parseFloat.bind(window);
 
         this.partitioner.resetPlayerPositions();
@@ -158,6 +166,8 @@ class App {
         console.log(`Box left: ${boundingBox.left}`);
         console.log(`Spatial index cell count: ${this.partitioner.spatialIndex.totalCellCount}`);
         console.log(`Structures initialization: ${processElapsed.toFixed(1)} ms`);
+
+        this.drawPlayers();
     }
 
     onResize() {
